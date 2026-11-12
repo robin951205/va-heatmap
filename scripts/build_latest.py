@@ -13,27 +13,27 @@
 
 ※ COLUMN_ALIASES / INSURER_CODES / FUND_TYPE_RULES 는 실제 공시실 엑셀을 보고 채워야 한다(확인 필요).
 """
-import argparse, glob, json, os, sys
+import argparse, glob, hashlib, json, os, re, sys
 from datetime import date
 import pandas as pd
 
 # ───────────────────────── 1. 컬럼 매핑 (확인 필요: 실제 헤더 보고 보완) ─────────────────────────
-# 표준 필드 → 엑셀 헤더 후보(공백 제거 후 비교)
+# 표준 필드 → 헤더 후보(공백·정렬안내문 제거 후 비교). 2026-11-12 공시실 펀드현황(일별) probe 결과 반영
 COLUMN_ALIASES = {
     "insurer_name":    ["보험사", "보험회사", "회사명", "보험사명"],
     "fund_code":       ["펀드코드", "펀드번호", "코드"],
     "fund_name":       ["펀드명", "특별계정명", "펀드이름"],
-    "fund_type_raw":   ["펀드유형", "유형", "펀드분류", "투자유형"],
-    "region_raw":      ["투자지역", "지역", "국내외구분"],
+    "fund_type_raw":   ["소유형", "펀드유형", "유형", "펀드분류", "투자유형"],
+    "region_raw":      ["대유형", "투자지역", "지역", "국내외구분"],
     "sub_type":        ["세부유형", "소분류"],
     "manager":         ["운용사", "자산운용사", "위탁운용사"],
     "inception_date":  ["설정일", "최초설정일", "설정일자"],
-    "total_fee_pct":   ["총보수", "총보수(%)", "보수합계", "총보수율"],
+    "total_fee_pct":   ["보수정보(%)_합계", "총보수", "총보수(%)", "보수합계", "총보수율"],
     "product_group":   ["상품군", "상품유형", "상품구분"],
     "is_active":       ["운용여부", "운용상태"],
     "base_date":       ["기준일", "기준일자", "일자"],
-    "nav":             ["기준가", "기준가격", "기준가(원)"],
-    "net_assets_100m": ["순자산", "순자산액", "순자산(억원)", "순자산총액"],
+    "nav":             ["기준가격(원)", "기준가", "기준가격", "기준가(원)"],
+    "net_assets_100m": ["순자산액(억원)", "순자산", "순자산액", "순자산(억원)", "순자산총액"],
     "set_amount_100m": ["설정액", "설정액(억원)", "설정원본"],
     # 스냅샷형 공시 수익률(%) 컬럼
     "ret_1D": ["1일", "일간수익률", "전일대비"],
@@ -42,8 +42,8 @@ COLUMN_ALIASES = {
     "ret_3M": ["3개월", "3개월수익률"],
     "ret_6M": ["6개월", "6개월수익률"],
     "ret_YTD": ["연초이후", "YTD", "연초대비"],
-    "ret_1Y": ["1년", "1년수익률"],
-    "ret_3Y": ["3년", "3년수익률", "3년누적"],
+    "ret_1Y": ["수익률(%)_1년", "1년", "1년수익률"],
+    "ret_3Y": ["수익률(%)_3년", "3년", "3년수익률", "3년누적"],
 }
 # 금액 컬럼의 엑셀 단위 → 억 원 환산 계수 (확인 필요: 원/백만원/억원 중 무엇인지)
 AMOUNT_TO_100M = {"원": 1e-8, "천원": 1e-5, "백만원": 1e-2, "억원": 1.0}
@@ -67,7 +67,9 @@ RANK_PERIODS = ["1M", "1Y"]          # data_schema.md rank_in_type 정의
 SOURCE = "생명보험협회 공시실"
 
 # ───────────────────────── 2. 컬럼 매핑 ─────────────────────────
-norm = lambda s: str(s).replace(" ", "").replace("\n", "").strip()
+def norm(s):
+    s = re.sub(r"(내림차순|오름차순)\s*정렬하기.*$", "", str(s))   # 공시실 헤더의 정렬 버튼 문구 제거
+    return s.replace(" ", "").replace("\n", "").strip()
 
 def map_columns(df):
     by_norm = {norm(c): c for c in df.columns}
@@ -99,6 +101,20 @@ def classify(raw, rules, default):
 def to_num(s):
     return pd.to_numeric(pd.Series(s).astype(str).str.replace(",", "").str.replace("%", "").str.strip(),
                          errors="coerce")
+
+def parse_ret(v):
+    """공시실 수익률 셀 → float(%). 예: '▲ 49.4249.42' → 49.42, '▼ 3.21-3.21' → -3.21, '-' → None
+    (화면표시값+정렬용 원값이 붙어 읽힘 → 마지막 소수 2자리 숫자를 원값으로 사용, 화살표로 부호 보정)"""
+    if v is None or (isinstance(v, float) and pd.isna(v)): return None
+    s = str(v).replace(",", "").strip()
+    nums = re.findall(r"-?\d+\.\d{2}", s)
+    if not nums:
+        try: return float(s)
+        except ValueError: return None
+    x = float(nums[-1])
+    if "▼" in s and x > 0: x = -x
+    if "▲" in s and x < 0: x = -x
+    return x
 
 def r2(x):
     return None if x is None or pd.isna(x) else round(float(x), 2)
@@ -136,7 +152,7 @@ def spark_from_history(h, base, n=52):
 
 # ───────────────────────── 5. 메인 ─────────────────────────
 def build(df, m, warnings):
-    req = ["insurer_name", "fund_code", "fund_name", "nav", "net_assets_100m"]
+    req = ["insurer_name", "fund_name", "nav", "net_assets_100m"]
     lack = [f for f in req if f not in m]
     if lack: sys.exit(f"[중단] 필수 표준필드 매핑 실패: {lack} → COLUMN_ALIASES 보완 필요")
 
@@ -146,7 +162,13 @@ def build(df, m, warnings):
     if "total_fee_pct" in d: d["total_fee_pct"] = to_num(d["total_fee_pct"]).values
     if "base_date" in d: d["base_date"] = pd.to_datetime(d["base_date"], errors="coerce")
     if "inception_date" in d: d["inception_date"] = pd.to_datetime(d["inception_date"], errors="coerce")
-    d["fund_code"] = d["fund_code"].astype(str).str.strip()
+    if "fund_code" in d:
+        d["fund_code"] = d["fund_code"].astype(str).str.strip()
+    else:   # 공시실 표에 펀드코드 없음 → 보험사명|펀드명|설정일 해시로 대체 (확인 필요: 펀드명 변경 시 키가 바뀜)
+        key = d.insurer_name.astype(str) + "|" + d.fund_name.astype(str).str.strip() + "|" + \
+              (d["inception_date"].dt.strftime("%Y%m%d") if "inception_date" in d else "")
+        d["fund_code"] = key.map(lambda k: "H" + hashlib.sha1(k.encode()).hexdigest()[:8])
+        warnings.append("펀드코드 컬럼 없음 → 보험사명|펀드명|설정일 해시로 fund_code 생성")
 
     # insurer_code
     miss_ins = sorted(set(d.insurer_name) - set(INSURER_CODES))
@@ -178,8 +200,14 @@ def build(df, m, warnings):
             h = d[d.fund_id == r.fund_id][["base_date", "nav"]].dropna().sort_values("base_date")
             ret, spark = returns_from_history(h, base, inc), spark_from_history(h, base)
         else:
-            ret = {p: r2(to_num([r.get(f"ret_{p}")]).iloc[0]) if f"ret_{p}" in m else None for p in PERIODS}
-            spark = []
+            ret, spark = {p: None for p in PERIODS}, []
+        # 공시 수익률 컬럼이 있으면 우선 사용(1Y·3Y 등 이력 없이도 확보). 규칙 4: 설정일 미달이면 N/A
+        for p in PERIODS:
+            if f"ret_{p}" not in m: continue
+            v = parse_ret(r.get(f"ret_{p}"))
+            start = period_start(base, p)
+            if start is not None and inc is not None and pd.notna(inc) and pd.Timestamp(inc) > start: v = None
+            if v is not None or not is_history: ret[p] = r2(v)
 
         funds.append({
             "fund_id": r.fund_id, "insurer_name": r.insurer_name, "fund_name": str(r.fund_name).strip(),
@@ -191,7 +219,7 @@ def build(df, m, warnings):
 
     if unk_type: warnings.append(f"fund_type 미분류 → '기타' 처리: {sorted(unk_type)}")
     if unk_region: warnings.append(f"region 미분류 → null: {sorted(unk_region)}")
-    if not is_history: warnings.append("스냅샷형 입력: spark_1y 비어 있음(기준가 이력 필요)")
+    if not is_history: warnings.append("이력 1일치: 1D~YTD·spark_1y 는 기준가 이력 누적(백필) 후 계산됨")
 
     # rank_in_type: 같은 fund_type 내 백분위(0~1, 1=최상위, 동률 평균), n<2 → 0.5
     fdf = pd.DataFrame([{"i": i, "t": f["fund_type"], **{p: f["ret"][p] for p in RANK_PERIODS}}

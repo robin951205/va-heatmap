@@ -36,6 +36,6 @@
   "paginate": true,
   "max_pages": 300,
   "date_column": "기준일",
-  "dedupe_keys": ["보험사", "펀드코드", "기준일"],
+  "dedupe_keys": ["보험사명", "펀드명", "설정일", "기준일"],
   "user_agent": "Mozilla/5.0 (VA-Fund-Heatmap personal batch)"
 }

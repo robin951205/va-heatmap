@@ -11,7 +11,7 @@
       (월별 분할·압축: GitHub 파일 100MB 제한 회피, 매일 커밋 크기 최소화)
 ※ 협회 이용약관·자동수집 허용 여부 확인 전에는 개인 확인용으로만 사용(확인 필요).
 """
-import argparse, io, json, os, sys, time
+import argparse, io, json, os, re, sys, time
 from datetime import date, timedelta
 import pandas as pd
 import requests
@@ -48,11 +48,11 @@ def flatten_cols(df):
         for tup in df.columns:
             parts = []
             for p in map(str, tup):
-                p = p.strip()
+                p = re.sub(r"\s*(내림차순|오름차순)\s*정렬하기.*$", "", p).strip()   # 정렬 버튼 문구 제거
                 if p and not p.startswith("Unnamed") and p not in parts: parts.append(p)
             cols.append("_".join(parts))
         df.columns = cols
-    df.columns = [str(c).strip() for c in df.columns]
+    df.columns = [re.sub(r"\s*(내림차순|오름차순)\s*정렬하기.*$", "", str(c)).strip() for c in df.columns]
     return df
 
 def html_tables(text):
@@ -60,6 +60,20 @@ def html_tables(text):
         return [flatten_cols(t) for t in pd.read_html(io.StringIO(text))]
     except ValueError:            # 표 없음
         return []
+
+def checkbox_values(text):
+    """목록 표의 각 행 체크박스 value(문서 순서). 없으면 []."""
+    try:
+        from lxml import html as lh
+        doc = lh.fromstring(text)
+    except Exception:
+        return []
+    out = []
+    for tr in doc.xpath("//tr[.//input[@type='checkbox']]"):
+        if tr.xpath("ancestor::thead"): continue          # 헤더의 '전체선택' 제외
+        inp = tr.xpath(".//input[@type='checkbox']")[0]
+        out.append((inp.get("value") or "").strip())
+    return out
 
 def pick_table(tables, c):
     if not tables: return pd.DataFrame()
@@ -77,6 +91,9 @@ def parse(resp, c) -> pd.DataFrame:
     kind = c.get("response", "html")
     if kind == "html":
         df = pick_table(html_tables(resp.text), c)
+        codes = checkbox_values(resp.text)
+        if len(codes) == len(df) and any(codes):          # '선택' 체크박스 value = 펀드 식별값(추정, 확인 필요)
+            df = df.copy(); df["펀드코드"] = codes
     elif kind == "json":
         data = resp.json()
         for key in c.get("json_path", []): data = data[key]
@@ -145,6 +162,8 @@ def probe(sess, c, d: date):
         print("  컬럼:", list(t.columns))
         with pd.option_context("display.max_columns", 50, "display.width", 250):
             print(t.head(3).to_string())
+    codes = checkbox_values(r.text)
+    print(f"\n행 체크박스 value {len(codes)}개 · 예시: {codes[:3]}")
     if not tables:
         print("→ 표가 없음: 결과가 자바스크립트로 따로 불려오는 구조일 수 있음. probe HTML 파일을 공유해 주세요.")
 

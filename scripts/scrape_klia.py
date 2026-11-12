@@ -92,8 +92,12 @@ def parse(resp, c) -> pd.DataFrame:
     if kind == "html":
         df = pick_table(html_tables(resp.text), c)
         codes = checkbox_values(resp.text)
-        if len(codes) == len(df) and any(codes):          # '선택' 체크박스 value = 펀드 식별값(추정, 확인 필요)
-            df = df.copy(); df["펀드코드"] = codes
+        if len(codes) == len(df) and any(codes):
+            # 체크박스 value 예: '20261111L01KLVL01V5205' = 기준일(8) + 협회 회사코드(L01) + 펀드코드
+            df = df.copy()
+            rest = [re.sub(r"^\d{8}", "", v) for v in codes]
+            df["회사코드"] = [m.group(1) if (m := re.match(r"^(L\d{2})", v)) else "" for v in rest]
+            df["펀드코드"] = [re.sub(r"^L\d{2}", "", v) for v in rest]
     elif kind == "json":
         data = resp.json()
         for key in c.get("json_path", []): data = data[key]

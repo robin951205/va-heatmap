@@ -20,7 +20,8 @@ import pandas as pd
 # ───────────────────────── 1. 컬럼 매핑 (확인 필요: 실제 헤더 보고 보완) ─────────────────────────
 # 표준 필드 → 헤더 후보(공백·정렬안내문 제거 후 비교). 2026-11-12 공시실 펀드현황(일별) probe 결과 반영
 COLUMN_ALIASES = {
-    "insurer_name":    ["보험사", "보험회사", "회사명", "보험사명"],
+    "insurer_name":    ["보험사명", "보험사", "보험회사", "회사명"],
+    "insurer_code":    ["회사코드"],          # 협회 회사코드(L01 등), 수집기가 체크박스 value에서 추출
     "fund_code":       ["펀드코드", "펀드번호", "코드"],
     "fund_name":       ["펀드명", "특별계정명", "펀드이름"],
     "fund_type_raw":   ["소유형", "펀드유형", "유형", "펀드분류", "투자유형"],
@@ -171,11 +172,21 @@ def build(df, m, warnings):
         warnings.append("펀드코드 컬럼 없음 → 보험사명|펀드명|설정일 해시로 fund_code 생성")
 
     # insurer_code
-    miss_ins = sorted(set(d.insurer_name) - set(INSURER_CODES))
-    if miss_ins:
-        warnings.append(f"INSURER_CODES 미등록 보험사 {len(miss_ins)}개 → 보험사명 그대로 코드로 사용: {miss_ins}")
-    d["insurer_code"] = d.insurer_name.map(lambda n: INSURER_CODES.get(n, norm(n)))
+    if "insurer_code" in d and d.insurer_code.notna().all() and (d.insurer_code.astype(str) != "").all():
+        miss_ins = []                                   # 협회 회사코드 사용
+    else:
+        miss_ins = sorted(set(d.insurer_name) - set(INSURER_CODES))
+        if miss_ins:
+            warnings.append(f"INSURER_CODES 미등록 보험사 {len(miss_ins)}개 → 보험사명 그대로 코드로 사용: {miss_ins}")
+        d["insurer_code"] = d.insurer_name.map(lambda n: INSURER_CODES.get(n, norm(n)))
     d["fund_id"] = d.insurer_code + "_" + d.fund_code
+
+    # 키 안정성 점검: 같은 펀드(보험사명·펀드명·설정일)에 fund_id가 여러 개면 코드가 날짜별로 바뀐다는 뜻
+    ident = d.insurer_name.astype(str) + "|" + d.fund_name.astype(str) + "|" + \
+            (d["inception_date"].astype(str) if "inception_date" in d else "")
+    multi = d.assign(_k=ident).groupby("_k").fund_id.nunique()
+    if (multi > 1).any():
+        warnings.append(f"fund_id 불안정: 펀드 {int((multi > 1).sum())}개가 날짜별로 다른 코드 → 키 규칙 재검토 필요")
 
     if "base_date" not in d or d.base_date.isna().all():
         sys.exit("[중단] 기준일 컬럼이 없거나 비어 있음 → 기준일 없이 latest.json 생성 불가")

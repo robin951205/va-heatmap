@@ -1,5 +1,5 @@
-# 수동 진단: 공시실 펀드현황 1페이지만 조회해 표 구조를 확인 (데이터 커밋 없음)
-# Actions → probe → Run workflow → 결과는 실행 화면의 Summary 와 Artifacts(probe-html)
+# 수동 진단: 공시실 펀드현황 구조 확인 + (선택) 1일치 전체 시험 변환. 데이터는 커밋하지 않음
+# Actions → probe → Run workflow → 결과는 실행 화면의 Summary
 name: probe
 
 on:
@@ -8,6 +8,10 @@ on:
       date:
         description: "기준일 (YYYY-MM-DD, 비우면 직전 영업일)"
         required: false
+      full_day:
+        description: "1일치 전체 수집→latest.json 시험 변환까지 (커밋 없음)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,30 +19,40 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       KLIA_CONFIG: scripts/klia_request.json
+      KLIA_RAW_DIR: /tmp/raw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install pandas requests lxml
-      - name: 진단 실행
+
+      - name: 진단 (1페이지)
         run: |
           set -o pipefail
           ARGS="--probe"
           if [ -n "${{ inputs.date }}" ]; then ARGS="$ARGS --date ${{ inputs.date }}"; fi
           {
-            echo '## 공시실 진단 결과'
-            echo '아래 전체를 복사해 Claude 에게 전달'
+            echo '## 1. 공시실 진단 (1페이지)'
             echo '```'
-            python scripts/scrape_klia.py $ARGS 2>&1 | head -c 60000 || echo "[실패] 종료코드 $?"
+            python scripts/scrape_klia.py $ARGS 2>&1 | head -c 30000 || echo "[실패] 종료코드 $?"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 1일치 시험 변환 (커밋 없음)
+        if: inputs.full_day
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.date }}" ]; then ARGS="--date ${{ inputs.date }}"; fi
+          {
+            echo '## 2. 1일치 수집 → latest.json 시험 변환'
+            echo '```'
+            python scripts/scrape_klia.py $ARGS 2>&1 | tail -5
+            python scripts/build_latest.py /tmp/raw -o /tmp/latest.json 2>&1 | tail -40
+            echo
+            python scripts/check_latest.py /tmp/latest.json 2>&1
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: probe-html
-          path: data/raw/probe_*.html
-          if-no-files-found: warn

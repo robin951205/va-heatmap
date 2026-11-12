@@ -701,9 +701,10 @@ function renderScatter(){
   svg.append("g").attr("class","ax").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(v=>(v>0?"+":"")+v+(ex?"%p":"%")));
   svg.append("line").attr("class","zero").attr("x1",m.l).attr("x2",W-m.r).attr("y1",y(0)).attr("y2",y(0));
   svg.append("line").attr("class","med").attr("x1",xs(medX)).attr("x2",xs(medX)).attr("y1",m.t).attr("y2",H-m.b);
-  svg.append("text").attr("class","cap").attr("x",xs(medX)+6).attr("y",m.t+12).text(`순자산 중앙값 ${fmtAmt(medX)}`);
+  const narrow = W < 640;   // 좁은 화면: 문구 겹침 방지 — 중앙값 라벨은 아래쪽, 오른쪽 문구 생략
+  svg.append("text").attr("class","cap").attr("x",xs(medX)+6).attr("y",narrow? H-m.b-8 : m.t+12).text(`순자산 중앙값 ${fmtAmt(medX)}`);
   svg.append("text").attr("class","cap").attr("x",m.l+8).attr("y",m.t+12).text(`← 소규모 · ${ex?"유형 평균 상회":"수익률 높음"}`);
-  svg.append("text").attr("class","cap").attr("text-anchor","end").attr("x",W-m.r-6).attr("y",m.t+12).text(`대형 · ${ex?"유형 평균 상회":"수익률 높음"} →`);
+  if (!narrow) svg.append("text").attr("class","cap").attr("text-anchor","end").attr("x",W-m.r-6).attr("y",m.t+12).text(`대형 · ${ex?"유형 평균 상회":"수익률 높음"} →`);
   svg.append("text").attr("class","axt").attr("x",W-m.r).attr("y",H-8).attr("text-anchor","end").text("순자산 (로그 눈금)");
   svg.append("text").attr("class","axt").attr("x",10).attr("y",14).text(ex?`${S.period} ${PLABEL[S.period]} · 유형 평균 대비(%p)`:`${S.period} ${PLABEL[S.period]} 수익률(%)`);
   const g=svg.append("g");

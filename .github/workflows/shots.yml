@@ -1,0 +1,46 @@
+# 홍보자료용: 공시실 화면 캡처 → shots 브랜치에 저장 (일회성, 사용 후 삭제)
+name: shots
+on:
+  push:
+    branches: [main]
+    paths: ["config/shots.txt"]
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: 캡처
+        run: |
+          mkdir -p out
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          LIST = ("https://pub.insure.or.kr/compareDis/variableInsrn/fundDay/list.do?pageIndex=1&search_stdYmd=2026-11-12"
+                  "&search_item=itemTypeAll&search_stdStartYmd=2025-11-12&search_stdEndYmd=2026-11-12&search_parentType=parentTypeAll"
+                  "&search_networth=networthAll&search_invType=invTypeAll&all_search_memberCd=all"
+                  + "".join(f"&search_memberCd={c}" for c in "L01 L02 L03 L04 L05 L31 L34 L33 L71 L74 L72 L61 L11 L77 L63 L78 L17 L51 L52 L41 L42 L43".split())
+                  + "&search_assetWeight=assetWeighTypeAll&search_startSettingYmd=2021-11-12&search_endSettingYmd=2026-11-12&pageUnit=20")
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              pg = b.new_page(viewport={"width":1440,"height":900}, device_scale_factor=2, locale="ko-KR")
+              for name, url in [("home","https://pub.insure.or.kr/"), ("fundlist", LIST)]:
+                  try:
+                      pg.goto(url, wait_until="networkidle", timeout=60000); pg.wait_for_timeout(2500)
+                      pg.screenshot(path=f"out/{name}_view.png")
+                      pg.screenshot(path=f"out/{name}_full.png", full_page=True)
+                      print(name, "ok", pg.title())
+                  except Exception as e:
+                      print(name, "fail", e)
+              b.close()
+          PY
+          ls -la out
+      - name: shots 브랜치에 저장
+        run: |
+          git config user.name "nav-batch"; git config user.email "nav-batch@users.noreply.github.com"
+          git checkout --orphan shots && git rm -rfq . && cp out/*.png . && git add *.png
+          git commit -qm "공시실 화면 캡처 (홍보자료용)" && git push -f origin shots

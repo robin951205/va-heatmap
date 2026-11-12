@@ -141,20 +141,25 @@ def request(sess, c, d: date, page: int):
     sys.exit(f"[중단] 요청 실패 HTTP {r.status_code}: {r.url[:200]}")
 
 def fetch_day(sess, c, d: date) -> pd.DataFrame:
-    pages, prev_sig = [], None
+    pages, prev_sig, first_n = [], None, None
     max_pages = c.get("max_pages", 300) if c.get("paginate") else 1
-    unit = int(c.get("params", {}).get("pageUnit", 0) or 0)
     for page in range(1, max_pages + 1):
         df = parse(request(sess, c, d, page), c)
         if df.empty: break
         sig = pd.util.hash_pandas_object(df, index=False).sum()
         if sig == prev_sig: break                 # 마지막 페이지를 반복 반환하는 경우
         pages.append(df); prev_sig = sig
+        first_n = first_n or len(df)              # 서버가 실제 적용한 페이지 크기(요청값보다 작을 수 있음)
         print(f"    p{page}: {len(df)}행")
-        if unit and len(df) < unit: break         # 마지막 페이지
+        if len(df) < first_n: break               # 마지막 페이지
         time.sleep(SLEEP_SEC)
     if not pages: return pd.DataFrame()
     out = pd.concat(pages, ignore_index=True)
+    keys = [k for k in ("회사코드", "펀드코드") if k in out.columns]
+    if len(keys) == 2:
+        dup = int(out.duplicated(subset=keys).sum())
+        print(f"    수신 {len(out)}행 · 고유 펀드 {len(out) - dup}개" +
+              (f" · 페이지 간 중복 {dup}행 (페이지 경계 불안정 → 누락 가능성)" if dup else ""))
     col = c.get("date_column", "기준일")
     if col not in out.columns: out[col] = d.isoformat()
     return out

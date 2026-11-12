@@ -28,7 +28,7 @@
     "search_startSettingYmd": "1980-01-01",
     "search_endSettingYmd": "{date}",
     "search_fundNm": "",
-    "pageUnit": "100"
+    "pageUnit": "3000"
   },
   "date_format": "%Y-%m-%d",
   "response": "html",
@@ -37,6 +37,6 @@
   "max_pages": 300,
   "date_column": "기준일",
   "required_columns": ["보험사명", "펀드명", "설정일", "기준가격(원)", "순자산액(억원)", "소유형", "대유형"],
-  "dedupe_keys": ["보험사명", "펀드명", "설정일", "기준일"],
+  "dedupe_keys": ["회사코드", "펀드코드", "기준일"],
   "user_agent": "Mozilla/5.0 (VA-Fund-Heatmap personal batch)"
 }

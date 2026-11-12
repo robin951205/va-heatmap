@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """latest.json 품질 점검 요약 (커밋 전 확인용)
-  python scripts/check_latest.py data/latest.json
+  python scripts/check_latest.py data/latest.json [data/raw]   # raw 폴더를 주면 공시 원문 소유형·대유형 분포도 출력
 """
-import json, sys
+import glob, json, os, sys
 from collections import Counter
 
 d = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "data/latest.json", encoding="utf-8"))
@@ -35,3 +35,10 @@ print("\n[1Y 음수 예시 — 공시실 화면과 대조]")
 for f in neg: print(f"  {f['insurer_name']} {f['fund_name']} 1Y {f['ret']['1Y']} 3Y {f['ret']['3Y']}")
 print("\n[샘플 3개]")
 for f in F[:3]: print(" ", json.dumps({k: f[k] for k in ['fund_id','fund_name','fund_type','region','nav','net_assets_100m','total_fee_pct','ret']}, ensure_ascii=False))
+
+if len(sys.argv) > 2 and os.path.isdir(sys.argv[2]):
+    import pandas as pd
+    raw = pd.concat([pd.read_csv(f, dtype=str, keep_default_na=False) for f in glob.glob(os.path.join(sys.argv[2], "nav_*.csv*"))])
+    raw = raw[raw["기준일"] == raw["기준일"].max()]
+    print(f"\n[공시 원문 대유형 × 소유형] (기준일 {raw['기준일'].max()}, {len(raw)}행)")
+    print(pd.crosstab(raw["소유형"], raw["대유형"], margins=True, margins_name="합계").to_string())

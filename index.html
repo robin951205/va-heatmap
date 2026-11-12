@@ -236,20 +236,64 @@ footer{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-rad
 footer b{color:var(--tx2);font-weight:600}
 
 @media (max-width:1180px){ .kpis{grid-template-columns:1fr 1fr} .main{grid-template-columns:1fr} #map,#scatter,#tablewrap{height:68vh;min-height:420px;max-height:none} }
+#mSticky,#sheet,#backdrop,.mcards{display:none}
 @media (max-width:640px){
-  .topbar .in{padding:10px} .brand p{display:none} .brand h1{font-size:17px} .mark{width:30px;height:30px}
-  .wrap{padding:10px 10px 24px} .pagetitle{display:none}
-  .asof .pill:nth-of-type(2){display:none} .pill{padding:4px 8px;font-size:12px}
-  .kpis{grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px} .kpi{padding:9px 11px}
-  .kpi:nth-child(2){grid-column:1/-1;order:3} .kpi:nth-child(4){grid-column:1/-1;order:4} .tchip span{white-space:nowrap} #mapInfo{display:none}
-  .kpi .v{font-size:17px} .kpi .s{font-size:11px} .breadth{margin:5px 0 4px} .bl{font-size:11px}
-  .types{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} .tchip{min-width:78px;padding:4px 8px}
-  .lbl{display:none} .bar{gap:6px;padding:6px} .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
-  .seg button{padding:6px 8px;font-size:12.5px} #segPeriod{width:100%} #segPeriod button{flex:1;padding:6px 0}
-  .search{flex:1 1 auto} .search input{width:100%} .sp{display:none}
-  #map,#scatter{height:70vh;min-height:380px;margin:4px} .maphead{flex-direction:column;align-items:flex-start}
-  .legend .chips span{min-width:0;padding:3px 4px;font-size:10px}
+  .topbar .in{padding:10px 12px} .brand p{display:none} .brand h1{font-size:16.5px} .mark{width:30px;height:30px}
+  .asof .pill:nth-of-type(2){display:none} .pill{padding:4px 9px;font-size:12px} .asof{gap:6px}
+  .wrap{padding:0 10px 24px}
+  /* 고정 기간 바 + 한 줄 요약 */
+  #mSticky{display:block;position:sticky;top:0;z-index:30;background:var(--bg);padding:8px 0 6px;margin:0 -10px 8px;padding-left:10px;padding-right:10px;
+    border-bottom:1px solid var(--line)}
+  #mSticky .seg{width:100%} #mSticky .seg button{flex:1;padding:8px 0;font-size:13px}
+  .mrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px}
+  #mSum{font-size:12.5px;color:var(--tx2);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mSum b{font-size:15px}
+  #mFilterBtn{padding:7px 12px;font-weight:600;color:var(--tx);flex:none}
+  #mFilterBtn b{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--acc);color:var(--accTx);font-size:11px;margin-left:2px}
+  #mFilterBtn b:empty{display:none}
+  #mSticky .breadth{margin:7px 0 0;height:5px}
+  /* 요약 카드는 유형 칩 한 줄만 */
+  .kpis{display:block;margin-bottom:8px} .kpis .kpi:not(:nth-child(4)){display:none}
+  .kpis .kpi{padding:0;border:0;background:none;box-shadow:none} .kpis .kpi .lb{display:none}
+  .types{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:0 10px} .tchip{min-width:84px;padding:5px 9px;flex:none} .tchip span{white-space:nowrap}
+  /* 지도 */
+  .main{gap:10px} .card{border-radius:12px}
+  .maphead{padding:7px 8px;flex-direction:row;flex-wrap:wrap} .mopts{gap:6px} .crumb{font-size:12px}
+  #map,#scatter{height:calc(100svh - 196px);min-height:400px;margin:4px}
+  .legend{padding:7px 8px;gap:6px} .legend .chips{width:100%} .legend .chips span{flex:1;min-width:0;padding:4px 0;font-size:9.5px}
+  #lgNote,#mapInfo{display:none}
+  .tile .n{-webkit-line-clamp:1}
+  /* 필터 하단 시트 */
+  #backdrop.on{display:block;position:fixed;inset:0;background:rgba(15,20,30,.38);z-index:55}
+  #sheet{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--panel);border-radius:18px 18px 0 0;
+    box-shadow:0 -10px 30px rgba(16,24,40,.18);max-height:82svh;overflow:auto;transform:translateY(105%);transition:transform .22s ease;padding:0 14px calc(16px + env(safe-area-inset-bottom))}
+  #sheet.on{transform:none}
+  .grab{width:38px;height:4px;border-radius:2px;background:var(--line2);margin:8px auto 4px}
+  .shd{display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;position:sticky;top:0;background:var(--panel);z-index:1}
+  .shd b{font-size:15px}
+  #sheet .bar{display:flex;flex-direction:column;align-items:stretch;gap:12px;border:0;box-shadow:none;padding:0;margin:0;background:none}
+  #sheet .lbl{display:block;margin:0 0 -6px;font-size:12px;font-weight:600;color:var(--tx2)}
+  #sheet .seg{width:100%;overflow-x:auto;scrollbar-width:none} #sheet .seg button{flex:1;padding:8px 6px}
+  #sheet .sp,#sheet #lblPeriod{display:none} #sheet .search input{width:100%;padding:10px 10px 10px 32px;font-size:14px}
+  #sheet .rel .iconbtn{width:100%;text-align:left;padding:9px 12px}
+  #sheet .pop.left{position:static;width:100%;box-shadow:none;margin-top:6px}
+  #sheet .ins .ls{max-height:40svh}
+  #sheet .tog{padding:4px 0;font-size:13.5px}
+  #sheet #mapOpts{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:12px}
+  #sheet #mapOpts .seg button{padding:8px 4px;font-size:12.5px}
+  /* 펀드 상세 하단 시트 */
+  #det{position:fixed;left:0;right:0;bottom:0;z-index:60;border-radius:18px 18px 0 0;max-height:78svh;overflow:auto;
+    transform:translateY(105%);transition:transform .22s ease;box-shadow:0 -10px 30px rgba(16,24,40,.18);padding:6px 16px calc(16px + env(safe-area-inset-bottom))}
+  #det.open{transform:none}
+  #det::before{content:"";display:block;width:38px;height:4px;border-radius:2px;background:var(--line2);margin:2px auto 8px}
+  /* 표 → 카드 목록 */
+  #ft{display:none} .mcards{display:block}
+  #tablewrap{max-height:none;min-height:0;overflow:visible}
+  .mcards .sortbar{display:flex;gap:6px;padding:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+  .mcards .li{padding:10px 10px}
+  footer{font-size:11px}
 }
+
 </style>
 </head>
 <body>
@@ -282,6 +326,16 @@ footer b{color:var(--tx2);font-weight:600}
 </header>
 <div class="wrap">
 
+  <!-- 모바일 전용: 고정 기간 바 + 한 줄 요약 -->
+  <div id="mSticky">
+    <div id="mPeriodSlot"></div>
+    <div class="mrow">
+      <div id="mSum" class="num"></div>
+      <button class="iconbtn" id="mFilterBtn">필터 <b id="mFilterCnt"></b></button>
+    </div>
+    <div class="breadth" id="mBreadth"></div>
+  </div>
+
   <!-- 요약 지표 -->
   <div class="kpis">
     <div class="kpi">
@@ -306,8 +360,10 @@ footer b{color:var(--tx2);font-weight:600}
   </div>
 
   <!-- 툴바 -->
-  <div class="bar">
-    <span class="lbl">기간</span>
+  <span id="phBar"></span>
+  <div class="bar" id="toolbar">
+    <span class="lbl" id="lblPeriod">기간</span>
+    <span id="phPeriod"></span>
     <div class="seg" id="segPeriod" role="group" aria-label="기간"></div>
     <span class="lbl">묶음</span>
     <div class="seg" id="segGroup"><button data-v="insurer" aria-pressed="true">보험사</button><button data-v="type" aria-pressed="false">펀드유형</button></div>
@@ -336,7 +392,8 @@ footer b{color:var(--tx2);font-weight:600}
           <div class="seg sm" id="segView"><button data-v="map" aria-pressed="true">히트맵</button><button data-v="scatter" aria-pressed="false" title="가로 = 순자산(로그), 세로 = 수익률">규모×성과</button><button data-v="table" aria-pressed="false">표</button></div>
           <div class="crumb" id="crumb"></div>
         </div>
-        <div class="mopts">
+        <span id="phMapOpts"></span>
+        <div class="mopts" id="mapOpts">
           <span class="lbl">색</span>
           <div class="seg sm" id="segScale">
             <button data-v="abs" aria-pressed="true" title="기간 등락률 그대로">등락률</button>
@@ -383,6 +440,12 @@ footer b{color:var(--tx2);font-weight:600}
 </div>
 
 <div id="tip" role="tooltip"></div>
+<div id="backdrop"></div>
+<div id="sheet" role="dialog" aria-label="필터·표시 설정">
+  <div class="grab"></div>
+  <div class="shd"><b>필터 · 표시</b><button class="iconbtn" id="sheetClose">완료</button></div>
+  <div id="sheetBody"></div>
+</div>
 
 <script>
 // ═══════════════════ 설정 ═══════════════════
@@ -684,6 +747,8 @@ function renderTable(){
     return `<td class="${cls}" title="${esc(v)}">${esc(v??"-")}</td>`;
   }).join("")+"</tr>").join("");
   $("ft").innerHTML=head+"<tbody>"+body+"</tbody>";
+  $("tablewrap").querySelector(".mcards")?.remove();
+  if (MQ.matches) $("tablewrap").insertAdjacentHTML("beforeend", renderCards(rows));
   $("mapInfo").textContent=`${fmtN(rows.length)}개 펀드 · 머리글을 눌러 정렬`;
 }
 $("ft").addEventListener("click",e=>{
@@ -693,14 +758,15 @@ $("ft").addEventListener("click",e=>{
 });
 
 // ═══════════════════ 렌더: 상세·상하위 ═══════════════════
-function select(id){ S.sel = S.sel===id ? null : id; renderDetail();
+function select(id){ S.sel = S.sel===id ? null : id; renderDetail(); syncBackdrop();
   document.querySelectorAll(".tile.sel,#ft tr.sel,#scatter circle.sel").forEach(x=>x.classList.remove("sel"));
   if(S.sel){ const q=CSS.escape(S.sel); document.querySelectorAll(`.tile[data-id="${q}"],#ft tr[data-id="${q}"],#scatter circle[data-id="${q}"]`).forEach(x=>x.classList.add("sel"));
     const c=document.querySelector(`#scatter circle[data-id="${q}"]`); if(c) c.parentNode.appendChild(c); }
-  if (S.sel && innerWidth<1180) $("det").scrollIntoView({behavior:"smooth",block:"nearest"});
+  if (S.sel && innerWidth<1180 && !MQ.matches) $("det").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function renderDetail(){
   const box=$("det"), f=S.sel && DATA.byId.get(S.sel);
+  box.classList.toggle("open", !!f);
   if(!f){ box.innerHTML=`<h3><span>펀드 상세</span></h3><div class="hint">히트맵 타일이나 목록의 펀드를 누르면 기간별 수익률과 기본 정보가 여기에 표시됩니다.<br>보험사·유형 머리글을 누르면 해당 묶음으로 확대됩니다.</div>`; return; }
   const p=S.period, vals=PERIODS.map(k=>f.ret?.[k]).filter(v=>v!=null), mx=Math.max(1,...vals.map(Math.abs));
   const bars=PERIODS.map(k=>{ const v=f.ret?.[k], w=v==null?0:Math.abs(v)/mx*50, r=ramps(), c=v==null?"#444": v>=0? r.up[2]: r.dn[2];
@@ -784,7 +850,7 @@ $("insList").addEventListener("change",e=>{ const all=insurers().map(x=>x[0]);
   setIns(e.target.checked ? [...new Set([...cur,n])] : cur.filter(x=>x!==n)); });
 $("insAll").onclick=()=>setIns(null);
 $("insNone").onclick=()=>setIns([]);
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(document.querySelector(".pop.on")) closePops(); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(sheetOn) setSheet(false); else if(document.querySelector(".pop.on")) closePops(); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
   if(e.key==="/" && document.activeElement!==$("q")){ e.preventDefault(); $("q").focus(); } });
 let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.view==="map") renderMap(); else if(S.view==="scatter") renderScatter(); },100); });
 
@@ -800,7 +866,7 @@ function renderAll(){
   $("map").style.display = S.view==="map" ? "" : "none";
   $("tablewrap").style.display = S.view==="table" ? "block" : "none";
   $("tip").style.display="none";
-  renderIns(); renderKPIs(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
+  renderIns(); renderKPIs(); renderMobileBar(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
   S.view==="map" ? renderMap() : S.view==="scatter" ? renderScatter() : renderTable();
 }
 
@@ -817,6 +883,46 @@ function renderIns(){
   $("insBtn").classList.toggle("on", !!S.insSel);
 }
 
+// ═══════════════════ 모바일 레이아웃 (640px 이하) ═══════════════════
+const MQ = matchMedia("(max-width:640px)");
+let sheetOn=false;
+function layoutMobile(){
+  const m=MQ.matches;
+  if (m){ $("mPeriodSlot").append($("segPeriod")); $("sheetBody").append($("toolbar"), $("mapOpts")); }
+  else  { $("phPeriod").after($("segPeriod")); $("phBar").after($("toolbar")); $("phMapOpts").after($("mapOpts")); setSheet(false); }
+}
+function setSheet(on){ sheetOn=on; $("sheet").classList.toggle("on",on); syncBackdrop(); }
+function syncBackdrop(){ $("backdrop").classList.toggle("on", MQ.matches && (sheetOn || !!S.sel)); }
+$("mFilterBtn").onclick=()=>setSheet(true);
+$("sheetClose").onclick=()=>setSheet(false);
+$("backdrop").onclick=()=>{ if(sheetOn) setSheet(false); else if(S.sel) select(S.sel); };
+MQ.addEventListener("change",()=>{ layoutMobile(); renderAll(); });
+function renderMobileBar(){
+  const p=S.period, base=filtered(), [b0]=STEPS[p], vals=base.map(f=>f.ret?.[p]).filter(v=>v!=null);
+  const up=vals.filter(v=>v>=b0).length, dn=vals.filter(v=>v<=-b0).length, fl=vals.length-up-dn, avg=wavg(base,p), r=ramps(), t=Math.max(vals.length,1);
+  $("mSum").innerHTML=`${p} 가중평균 <b style="color:${txtColor(avg)}">${fmt(avg)}</b> · <span style="color:${r.up[3]}">▲${fmtN(up)}</span> <span style="color:${r.dn[3]}">▼${fmtN(dn)}</span> · ${fmtN(base.length)}개`;
+  $("mBreadth").innerHTML=`<i style="width:${up/t*100}%;background:${r.up[2]}"></i><i style="width:${fl/t*100}%;background:${NEU}"></i><i style="width:${dn/t*100}%;background:${r.dn[2]}"></i>`;
+  const n=[S.group!=="insurer", !!S.region, !!S.insSel, S.types.length>0, S.hideSmall, !!S.q.trim(), S.scale!=="abs", S.size!==(MQ.matches?"sqrt":"assets")].filter(Boolean).length;
+  $("mFilterCnt").textContent = n || "";
+}
+// 모바일 표 → 카드 목록
+function renderCards(rows){
+  const p=S.period, ex=S.scale==="excess", m=f=> ex ? excess(f,p) : f.ret?.[p];
+  const key=S.mSort||"desc";
+  rows=rows.slice().sort((a,b)=>{ if(key==="assets") return (b.net_assets_100m||0)-(a.net_assets_100m||0);
+    const x=m(a), y=m(b); if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return key==="desc"? y-x : x-y; });
+  const btn=(k,l)=>`<button class="iconbtn" data-ms="${k}" style="${key===k?"border-color:var(--acc);color:var(--acc);background:var(--acc2)":""}">${l}</button>`;
+  return `<div class="mcards"><div class="sortbar">${btn("desc",`${p} 높은 순`)}${btn("asc",`${p} 낮은 순`)}${btn("assets","순자산 큰 순")}</div>`+
+    rows.slice(0,300).map(f=>`<div class="li" data-id="${f.fund_id}"><span class="k"></span><span class="a"><b>${esc(f.fund_name)}</b>
+      <span>${esc(shortIns(f.insurer_name))} · ${esc(f.fund_type)} · ${fmtN(f.net_assets_100m,0)}억</span></span>
+      <span class="r num" style="color:${txtColor(m(f))}">${ex?fmtP(m(f)):fmt(m(f))}</span></div>`).join("")+
+    (rows.length>300?`<div class="hint" style="padding:10px">상위 300개만 표시 · 검색이나 필터로 좁혀 보세요 (전체 ${fmtN(rows.length)}개)</div>`:"")+`</div>`;
+}
+$("tablewrap").addEventListener("click",e=>{
+  const b=e.target.closest("[data-ms]"); if(b){ S.mSort=b.dataset.ms; renderTable(); return; }
+  const li=e.target.closest(".mcards .li"); if(li) select(li.dataset.id);
+});
+
 // ═══════════════════ 시작 ═══════════════════
 const MOCK = { base_date:"2026-01-01", source:"MOCK", funds:[
   ["MOCKA_01","MOCK가나생명","글로벌주식형","주식형","해외",8500,1.35,4.80,22.10],["MOCKA_02","MOCK가나생명","국내채권형","채권형","국내",6200,0.02,0.35,4.10],
@@ -827,6 +933,8 @@ const MOCK = { base_date:"2026-01-01", source:"MOCK", funds:[
   net_assets_100m:r[5],nav:1000,total_fee_pct:0.5,ret:{"1D":r[6],"1M":r[7],"1Y":r[8]}}))};
 
 async function boot(){
+  if (MQ.matches && !loadPrefs().size) S.size="sqrt";   // 모바일 첫 방문: 작은 타일 완화
+  layoutMobile();
   try { const r=await fetch("data/latest.json",{cache:"no-cache"}); if(!r.ok) throw 0;
     DATA=await r.json(); if(!Array.isArray(DATA.funds)||!DATA.funds.length) throw 0;
   } catch(_){ DATA=MOCK; IS_MOCK=true; }

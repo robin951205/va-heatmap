@@ -148,6 +148,7 @@ a{color:var(--acc)}
 .legend .chips{display:flex;gap:2px}
 .legend .chips span{min-width:52px;padding:4px 6px;text-align:center;font-size:11px;color:var(--tileTx);cursor:default;border-radius:3px}
 .legend .chips span.lt{color:#fff}
+.legend.nolg #lgTitle,.legend.nolg .chips,.legend.nolg #lgNote{display:none}
 .legend .chips span.na{background:repeating-linear-gradient(135deg,var(--na1) 0 5px,var(--na2) 5px 10px);color:var(--tx3)}
 
 /* ── 사이드 ── */
@@ -262,6 +263,7 @@ footer b{color:var(--tx2);font-weight:600}
   #map,#scatter{height:calc(100svh - 196px);min-height:400px;margin:4px}
   .legend{padding:7px 8px;gap:6px} .legend .chips{width:100%} .legend .chips span{flex:1;min-width:0;padding:4px 0;font-size:9.5px}
   #lgNote,#mapInfo{display:none}
+  .legend.nolg{display:none}
   .tile .n{-webkit-line-clamp:1}
   /* 필터 하단 시트 */
   #backdrop.on{display:block;position:fixed;inset:0;background:rgba(15,20,30,.38);z-index:55}
@@ -290,7 +292,12 @@ footer b{color:var(--tx2);font-weight:600}
   #det::before{content:"";display:block;width:38px;height:4px;border-radius:2px;background:var(--line2);margin:2px auto 8px}
   /* 표 → 카드 목록 */
   #ft{display:none} .mcards{display:block}
-  #tablewrap{max-height:none;min-height:0;overflow:visible}
+  #tablewrap{height:auto!important;max-height:none;min-height:0;overflow:visible}
+  .mcards .sortbar{position:sticky;top:var(--mstick,118px);z-index:5;background:var(--panel)}
+  .mcards .li{grid-template-columns:26px 1fr auto}
+  .mcards .li .k{font-size:12px;font-weight:600;text-align:center}
+  .mcards .more{display:block;width:calc(100% - 16px);margin:8px;padding:11px;font-weight:600;color:var(--acc);background:var(--acc2);border:0;border-radius:9px}
+  .mcards .cnt{padding:8px 10px 0;font-size:12px;color:var(--tx3)}
   .mcards .sortbar{display:flex;gap:6px;padding:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
   .mcards .li{padding:10px 10px}
   footer{font-size:11px}
@@ -815,6 +822,8 @@ $("lgChips").addEventListener("mouseover",e=>{ const c=e.target.closest("span[da
 $("lgChips").addEventListener("mouseleave",()=>{ delete $("map").dataset.hl; delete $("scatter").dataset.hl; });
 function renderCrumb(){
   $("crumb").innerHTML = S.zoom ? `<button id="zoomOut">← 전체</button> &nbsp;/&nbsp; <b>${esc(S.zoom)}</b> <span style="color:var(--tx3)">(Esc로 돌아가기)</span>`
+    : S.view==="table" ? `<b>${MQ.matches?"목록":"표"}</b> <span style="color:var(--tx3)">· ${MQ.matches?"펀드를 누르면 상세":"머리글을 눌러 정렬"}</span>`
+    : S.view==="scatter" ? `<b>규모×성과</b> <span style="color:var(--tx3)">· 점을 누르면 상세</span>`
     : `<b>${S.group==="insurer"?"보험사":"펀드유형"}별</b> <span style="color:var(--tx3)">· 머리글을 누르면 확대</span>`;
   const zb=$("zoomOut"); if(zb) zb.onclick=()=>{ S.zoom=null; renderAll(); };
 }
@@ -859,6 +868,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(sheetOn) setSh
 let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(!DATA) return; if(S.view==="map") renderMap(); else if(S.view==="scatter") renderScatter(); },100); });
 
 function renderAll(){
+  S.mLimit=50;
   const hasP = p => DATA.funds.some(f=>f.ret?.[p]!=null);
   $("segPeriod").innerHTML = PERIODS.map(p=>`<button data-v="${p}" aria-pressed="${p===S.period}" class="${hasP(p)?"":"nodata"}" title="${PLABEL[p]}${hasP(p)?"":" · 데이터 없음"}">${p}</button>`).join("");
   document.documentElement.dataset.theme = S.theme==="dark" ? "dark" : "light";
@@ -866,11 +876,12 @@ function renderAll(){
   ["segGroup","segRegion","segScale","segConv","segPal","segView","segSize","segTheme"].forEach((id,i)=>setSeg(id,[S.group,S.region,S.scale,S.conv,S.pal,S.view,S.size,S.theme][i]));
   $("segSize").style.display = $("sizeLbl").style.display = S.view==="map" ? "" : "none";
   $("scatter").style.display = S.view==="scatter" ? "block" : "none";
+  document.querySelector(".legend").classList.toggle("nolg", S.view==="table");
   $("hideSmall").checked=S.hideSmall;
   $("map").style.display = S.view==="map" ? "" : "none";
   $("tablewrap").style.display = S.view==="table" ? "block" : "none";
   $("tip").style.display="none";
-  renderIns(); renderKPIs(); renderMobileBar(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
+  renderIns(); renderKPIs(); renderMobileBar(); syncStick(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
   S.view==="map" ? renderMap() : S.view==="scatter" ? renderScatter() : renderTable();
 }
 
@@ -896,6 +907,8 @@ function layoutMobile(){
   else  { $("phPeriod").after($("segPeriod")); $("phBar").after($("toolbar")); $("phMapOpts").after($("mapOpts")); $("sizeLbl").after($("segSize")); setSheet(false); }
 }
 function setSheet(on){ sheetOn=on; $("sheet").classList.toggle("on",on); syncBackdrop(); }
+function syncStick(){ if(MQ.matches) document.documentElement.style.setProperty("--mstick", ($("mSticky").offsetHeight)+"px"); }
+addEventListener("resize",syncStick);
 function syncBackdrop(){ $("backdrop").classList.toggle("on", MQ.matches && (sheetOn || !!S.sel)); }
 $("mFilterBtn").onclick=()=>setSheet(true);
 $("sheetClose").onclick=()=>setSheet(false);
@@ -916,14 +929,17 @@ function renderCards(rows){
   rows=rows.slice().sort((a,b)=>{ if(key==="assets") return (b.net_assets_100m||0)-(a.net_assets_100m||0);
     const x=m(a), y=m(b); if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return key==="desc"? y-x : x-y; });
   const btn=(k,l)=>`<button class="iconbtn" data-ms="${k}" style="${key===k?"border-color:var(--acc);color:var(--acc);background:var(--acc2)":""}">${l}</button>`;
+  const lim=Math.min(S.mLimit||50, rows.length), rest=rows.length-lim;
   return `<div class="mcards"><div class="sortbar">${btn("desc",`${p} 높은 순`)}${btn("asc",`${p} 낮은 순`)}${btn("assets","순자산 큰 순")}</div>`+
-    rows.slice(0,300).map(f=>`<div class="li" data-id="${f.fund_id}"><span class="k"></span><span class="a"><b>${esc(f.fund_name)}</b>
+    `<div class="cnt num">${fmtN(rows.length)}개 펀드 · ${ex?"유형 평균 대비(%p)":`${p} ${PLABEL[p]} 수익률`} · 누르면 상세</div>`+
+    rows.slice(0,lim).map((f,i)=>`<div class="li" data-id="${f.fund_id}"><span class="k num">${i+1}</span><span class="a"><b>${esc(f.fund_name)}</b>
       <span>${esc(shortIns(f.insurer_name))} · ${esc(f.fund_type)} · ${fmtN(f.net_assets_100m,0)}억</span></span>
       <span class="r num" style="color:${txtColor(m(f))}">${ex?fmtP(m(f)):fmt(m(f))}</span></div>`).join("")+
-    (rows.length>300?`<div class="hint" style="padding:10px">상위 300개만 표시 · 검색이나 필터로 좁혀 보세요 (전체 ${fmtN(rows.length)}개)</div>`:"")+`</div>`;
+    (rest>0?`<button class="more" data-more="1">${fmtN(Math.min(50,rest))}개 더 보기 <span style="font-weight:400">(남은 ${fmtN(rest)}개)</span></button>`:"")+`</div>`;
 }
 $("tablewrap").addEventListener("click",e=>{
-  const b=e.target.closest("[data-ms]"); if(b){ S.mSort=b.dataset.ms; renderTable(); return; }
+  const b=e.target.closest("[data-ms]"); if(b){ S.mSort=b.dataset.ms; S.mLimit=50; renderTable(); return; }
+  if(e.target.closest("[data-more]")){ S.mLimit=(S.mLimit||50)+50; renderTable(); return; }
   const li=e.target.closest(".mcards .li"); if(li) select(li.dataset.id);
 });
 

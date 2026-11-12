@@ -78,6 +78,25 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-width:0}
 .maphead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--tx2)}
 .crumb button{border:0;background:none;color:var(--acc);padding:0}
+.mopts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.seg.sm button{padding:4px 9px;font-size:12px}
+#scatter{display:none;position:relative;height:calc(100vh - 318px);min-height:520px;margin:6px}
+#scatter svg{display:block}
+#scatter .ax text{fill:var(--tx3);font-size:11px;font-family:inherit}
+#scatter .ax path,#scatter .ax line{stroke:#2e3442}
+#scatter .grid line{stroke:#1f2430}
+#scatter .zero{stroke:#596074;stroke-width:1}
+#scatter .med{stroke:#596074;stroke-dasharray:4 4}
+#scatter .cap{fill:var(--tx3);font-size:11.5px}
+#scatter .axt{fill:var(--tx2);font-size:11.5px}
+#scatter circle{stroke:rgba(0,0,0,.35);stroke-width:.6;cursor:pointer;transition:opacity .12s}
+#scatter circle:hover{stroke:#fff;stroke-width:1.6}
+#scatter circle.sel{stroke:#ffd43b;stroke-width:2.4}
+#scatter.dimming circle:not(.hit){opacity:.12}
+#scatter[data-hl] circle{opacity:.1}
+#scatter[data-hl="-4"] circle[data-b="-4"],#scatter[data-hl="-3"] circle[data-b="-3"],#scatter[data-hl="-2"] circle[data-b="-2"],
+#scatter[data-hl="-1"] circle[data-b="-1"],#scatter[data-hl="0"] circle[data-b="0"],#scatter[data-hl="1"] circle[data-b="1"],
+#scatter[data-hl="2"] circle[data-b="2"],#scatter[data-hl="3"] circle[data-b="3"],#scatter[data-hl="4"] circle[data-b="4"]{opacity:1}
 .crumb b{color:var(--tx)}
 #map{position:relative;height:calc(100vh - 318px);min-height:520px;margin:6px;overflow:hidden}
 .g1{position:absolute;box-sizing:border-box;border:1px solid #2b303c;background:#12141a}
@@ -193,7 +212,7 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--tx3);line-height:1.75}
 footer b{color:var(--tx2);font-weight:600}
 
-@media (max-width:1180px){ .kpis{grid-template-columns:1fr 1fr} .main{grid-template-columns:1fr} #map,#tablewrap{height:68vh;min-height:420px;max-height:none} }
+@media (max-width:1180px){ .kpis{grid-template-columns:1fr 1fr} .main{grid-template-columns:1fr} #map,#scatter,#tablewrap{height:68vh;min-height:420px;max-height:none} }
 @media (max-width:640px){
   .wrap{padding:10px 10px 24px} .top{margin-bottom:10px} .brand h1{font-size:18px} .brand p{display:none}
   .asof .pill:nth-of-type(2){display:none} .pill{padding:4px 8px;font-size:12px}
@@ -203,7 +222,7 @@ footer b{color:var(--tx2);font-weight:600}
   .lbl{display:none} .bar{gap:6px} .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
   .seg button{padding:6px 8px;font-size:12.5px} #segPeriod{width:100%} #segPeriod button{flex:1;padding:6px 0}
   .search{flex:1 1 auto} .search input{width:100%} .sp{display:none}
-  #map{height:70vh;min-height:380px;margin:4px} .legend .chips span{min-width:0;padding:3px 4px;font-size:10px}
+  #map,#scatter{height:70vh;min-height:380px;margin:4px} .maphead{flex-direction:column;align-items:flex-start} .legend .chips span{min-width:0;padding:3px 4px;font-size:10px}
 }
 </style>
 </head>
@@ -226,9 +245,7 @@ footer b{color:var(--tx2);font-weight:600}
           <div class="seg" id="segConv"><button data-v="kr" aria-pressed="true">국내식 (상승 빨강)</button><button data-v="us" aria-pressed="false">해외식 (상승 초록)</button></div>
           <h4>팔레트</h4>
           <div class="seg" id="segPal"><button data-v="std" aria-pressed="true">기본</button><button data-v="cvd" aria-pressed="false">색각 친화 (파랑/주황)</button></div>
-          <h4>색 기준</h4>
-          <div class="seg" id="segScale"><button data-v="abs" aria-pressed="true">절대 등락률</button><button data-v="rank" aria-pressed="false">유형 내 순위</button></div>
-          <div class="hint">유형 내 순위: 같은 펀드유형 안의 백분위로 색을 칠합니다. 채권형처럼 변동폭이 작은 유형끼리 비교할 때 유용합니다.</div>
+          <div class="hint">색 기준·면적 기준은 히트맵 위쪽에서 바꿀 수 있습니다.</div>
         </div>
       </div>
     </div>
@@ -278,7 +295,7 @@ footer b{color:var(--tx2);font-weight:600}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="q" type="search" placeholder="펀드명·보험사 검색" autocomplete="off">
     </div>
-    <div class="seg" id="segView"><button data-v="map" aria-pressed="true">히트맵</button><button data-v="table" aria-pressed="false">표</button></div>
+    <div class="seg" id="segView"><button data-v="map" aria-pressed="true">히트맵</button><button data-v="scatter" aria-pressed="false" title="가로 = 순자산(로그), 세로 = 수익률">규모×성과</button><button data-v="table" aria-pressed="false">표</button></div>
   </div>
 
   <!-- 본문 -->
@@ -286,14 +303,29 @@ footer b{color:var(--tx2);font-weight:600}
     <div class="card">
       <div class="maphead">
         <div class="crumb" id="crumb"></div>
-        <div class="num" id="mapInfo"></div>
+        <div class="mopts">
+          <span class="lbl">색</span>
+          <div class="seg sm" id="segScale">
+            <button data-v="abs" aria-pressed="true" title="기간 등락률 그대로">등락률</button>
+            <button data-v="excess" aria-pressed="false" title="같은 펀드유형의 순자산 가중 평균 수익률 대비 차이(%p)">유형 평균 대비</button>
+            <button data-v="rank" aria-pressed="false" title="같은 펀드유형 안의 백분위">유형 내 순위</button>
+          </div>
+          <span class="lbl" id="sizeLbl">면적</span>
+          <div class="seg sm" id="segSize">
+            <button data-v="assets" aria-pressed="true" title="순자산에 비례 (기본)">순자산</button>
+            <button data-v="sqrt" aria-pressed="false" title="순자산의 제곱근 — 대형·소형 차이를 줄임">완화</button>
+            <button data-v="equal" aria-pressed="false" title="모든 펀드 같은 크기 — 규모와 무관하게 성과만 비교">균등</button>
+          </div>
+        </div>
       </div>
       <div id="map"></div>
+      <div id="scatter"></div>
       <div id="tablewrap"><table class="ft" id="ft"></table></div>
       <div class="legend">
         <span id="lgTitle"></span>
         <div class="chips" id="lgChips"></div>
         <span id="lgNote" style="color:var(--tx3)"></span>
+        <span class="sp"></span><span class="num" id="mapInfo" style="color:var(--tx3)"></span>
       </div>
     </div>
 
@@ -310,7 +342,8 @@ footer b{color:var(--tx2);font-weight:600}
   <footer>
     <b>유의사항</b> · 수익률은 기준가 기준(특별계정 운용보수 차감 후)이며 계약자 적립금 수익률과 다릅니다(보험관계비용 등 미반영).
     1D~YTD는 기준일과 기간 시작일(휴장 시 직전 영업일) 기준가로 계산한 누적 수익률이고, 1Y·3Y·5Y는 공시 수익률이며 모두 연환산하지 않았습니다.
-    설정 후 기간이 모자란 펀드는 N/A(빗금)로 표시합니다.<br>
+    설정 후 기간이 모자란 펀드는 N/A(빗금)로 표시합니다. '유형 평균 대비'는 같은 펀드유형의 순자산 가중 평균 수익률과의 차이(%p)이며 위험(변동성)을 반영하지 않은 단순 비교입니다.
+    소형 펀드는 수익률 변동이 크고 운용 지속성이 다를 수 있습니다.<br>
     <b>과거 수익률은 미래 수익을 보장하지 않습니다.</b> 본 화면은 특정 펀드의 추천이나 펀드변경 권유가 아닙니다.<br>
     데이터 출처: 생명보험협회 공시실(변액보험 펀드현황). 본 사이트는 개인이 제작한 비공식 정보 시각화로, 생명보험협회 및 특정 보험회사와 무관하며 원자료와 차이가 있을 수 있습니다.
   </footer>
@@ -338,12 +371,12 @@ const NEU = "#3a3f4a";
 
 // ═══════════════════ 상태 ═══════════════════
 const S = Object.assign({ period:"1D", group:"insurer", region:"", scale:"abs", conv:"kr", pal:"std",
-  view:"map", showTiny:false, insSel:null, types:[], q:"", zoom:null, sel:null, mv:"top", sortK:null, sortD:-1 }, loadPrefs());
+  view:"map", size:"assets", showTiny:false, insSel:null, types:[], q:"", zoom:null, sel:null, mv:"top", sortK:null, sortD:-1 }, loadPrefs());
 function loadPrefs(){ try { return JSON.parse(localStorage.getItem("vaheat.prefs")||"{}"); } catch(_) { return {}; } }
-function savePrefs(){ try { const {period,group,scale,conv,pal,view,showTiny,insSel}=S;
-  localStorage.setItem("vaheat.prefs", JSON.stringify({period,group,scale,conv,pal,view,showTiny,insSel})); } catch(_){} }
+function savePrefs(){ try { const {period,group,scale,conv,pal,view,size,showTiny,insSel}=S;
+  localStorage.setItem("vaheat.prefs", JSON.stringify({period,group,scale,conv,pal,view,size,showTiny,insSel})); } catch(_){} }
 
-let DATA = null, IS_MOCK = false, RANK = {};
+let DATA = null, IS_MOCK = false, RANK = {}, TAVG = {};
 const $ = id => document.getElementById(id);
 const fmt = (v,d=2) => v==null||isNaN(v) ? "N/A" : (v>0?"+":v<0?"−":"") + Math.abs(v).toFixed(d) + "%";
 const fmtN = (v,d=0) => v==null ? "-" : v.toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -368,7 +401,9 @@ function bucket(f){
     const st = RANK_STEPS;
     return p<st[0]?-3: p<st[1]?-2: p<st[2]?-1: p<st[3]?0: p<st[4]?1: p<st[5]?2: 3;
   }
-  const [b0,b1,b2,b3] = STEPS[S.period], a=Math.abs(v), s=Math.sign(v);
+  const ex = S.scale==="excess", x = ex ? excess(f) : v;
+  if (x==null) return "na";
+  const [b0,b1,b2,b3] = STEPS[S.period].map(t=> ex ? t/2 : t), a=Math.abs(x), s=Math.sign(x);
   return a<b0?0: a<b1?s*1: a<b2?s*2: a<b3?s*3: s*4;
 }
 function bucketColor(b){
@@ -380,7 +415,8 @@ function bucketColor(b){
 }
 function legendItems(){
   if (S.scale==="rank") return [[-3,"하위 10%"],[-2,"10~25"],[-1,"25~40"],[0,"40~60"],[1,"60~75"],[2,"75~90"],[3,"상위 10%"],["na","N/A"]];
-  const [b0,b1,b2,b3] = STEPS[S.period];
+  const ex = S.scale==="excess", u = ex ? "" : "";
+  const [b0,b1,b2,b3] = STEPS[S.period].map(t=> ex ? t/2 : t);
   return [[-4,`≤−${b3}`],[-3,`−${b2}~${b3}`],[-2,`−${b1}~${b2}`],[-1,`−${b0}~${b1}`],[0,`±${b0}`],
           [1,`+${b0}~${b1}`],[2,`+${b1}~${b2}`],[3,`+${b2}~${b3}`],[4,`≥+${b3}`],["na","N/A"]];
 }
@@ -396,8 +432,17 @@ function computeRanks(){
         const pct = n<2 ? .5 : ((i+j)/2)/(n-1); for(let k=i;k<=j;k++) m.set(s[k].fund_id,pct); i=j+1; }
     }
     RANK[p]=m;
+    // 유형별 순자산 가중 평균(전체 펀드 기준) → '유형 평균 대비' 계산용
+    TAVG[p] = new Map([...d3.group(DATA.funds,f=>f.fund_type)].map(([t,a])=>[t,wavg(a,p)]));
   }
+  // 순자산 규모 백분위(0=최소, 1=최대)
+  const sz = DATA.funds.slice().sort((a,b)=>(a.net_assets_100m||0)-(b.net_assets_100m||0));
+  SIZEPCT = new Map(sz.map((f,i)=>[f.fund_id, sz.length<2?.5:i/(sz.length-1)]));
 }
+let SIZEPCT = new Map();
+const excess = (f,p=S.period) => { const v=f.ret?.[p], a=TAVG[p]?.get(f.fund_type); return v==null||a==null ? null : v-a; };
+const metric = (f,p=S.period) => S.scale==="excess" ? excess(f,p) : f.ret?.[p];
+const fmtP = (v,d=2) => v==null||isNaN(v) ? "N/A" : (v>0?"+":v<0?"−":"") + Math.abs(v).toFixed(d) + "%p";
 function filtered(opts={}){
   const q = S.q.trim().toLowerCase();
   return DATA.funds.filter(f =>
@@ -441,6 +486,9 @@ function renderKPIs(){
 }
 
 // ═══════════════════ 렌더: 히트맵 ═══════════════════
+// 면적 기준: 순자산(기본) / 완화(제곱근) / 균등 — 소형 펀드도 비교할 수 있게
+function sizeOf(f){ const a=Math.max(f.net_assets_100m||0, 0.05);
+  return S.size==="equal" ? 1 : S.size==="sqrt" ? Math.sqrt(a) : a; }
 function renderMap(){
   const el=$("map"); const W=el.clientWidth, H=el.clientHeight;
   const funds=filtered();
@@ -449,7 +497,7 @@ function renderMap(){
   const keys = S.zoom ? [k2] : [k1,k2];
   const root = d3.hierarchy(d3.group(funds,...keys), d => d instanceof Map ? [...d]
       : Array.isArray(d) && d[1] instanceof Map ? [...d[1]] : Array.isArray(d) && Array.isArray(d[1]) ? d[1] : null)
-    .sum(d => d && d.fund_id ? Math.max(d.net_assets_100m||0, 0.05) : 0)
+    .sum(d => d && d.fund_id ? sizeOf(d) : 0)
     .sort((a,b)=>{
       if (a.depth===1 && S.group==="type" && !S.zoom) return TYPE_ORDER.indexOf(a.data[0])-TYPE_ORDER.indexOf(b.data[0]);
       return b.value-a.value; });
@@ -470,7 +518,7 @@ function renderMap(){
       const leaves=n.leaves().map(l=>l.data), v=wavg(leaves,S.period);
       g.innerHTML = `<div class="h" title="${esc(name)} · 클릭해서 확대"><span>${esc(w>90?name:shortIns(name))}</span>`+
         (w>150?`<span class="num" style="color:${txtColor(v)}">${fmt(v)}</span>`:"")+
-        (w>230?`<span class="m num">${fmtAmt(n.value)}</span>`:"")+`</div>`;
+        (w>230?`<span class="m num">${fmtAmt(d3.sum(leaves,f=>f.net_assets_100m||0))}</span>`:"")+`</div>`;
       g.firstChild.onclick = () => { S.zoom=name; renderAll(); };
     } else if (isG2(n) && n.value/tot>0.006 && w>40){
       g.innerHTML = `<div class="h">${esc(name)}</div>`;
@@ -480,7 +528,7 @@ function renderMap(){
   for (const l of root.leaves()){
     const f=l.data, w=l.x1-l.x0, h=l.y1-l.y0;
     if (w<1||h<1) continue;
-    const b=bucket(f), col=bucketColor(b), v=f.ret?.[S.period];
+    const b=bucket(f), col=bucketColor(b), v=f.ret?.[S.period], xv=S.scale==="excess"?excess(f):null;
     const t=document.createElement("div");
     t.className="tile"+(b==="na"?" na":"")+(S.sel===f.fund_id?" sel":"")+(q&&match(f,q)?" hit":"");
     t.dataset.b=b; t.dataset.id=f.fund_id;
@@ -489,13 +537,13 @@ function renderMap(){
     if (w>34 && h>18){
       const label = S.group==="type" ? `${shortIns(f.insurer_name)} ${f.fund_name}` : f.fund_name;
       t.innerHTML = (h>fs*2.4 && w>52 ? `<div class="n" style="font-size:${Math.max(9,fs*.62)}px">${esc(label)}</div>`:"")+
-        `<div class="p num" style="font-size:${fs}px">${v==null?"N/A":fmt(v)}</div>`;
+        `<div class="p num" style="font-size:${fs}px">${v==null?"N/A":S.scale==="excess"?fmtP(xv):fmt(v)}</div>`;
     }
     frag.appendChild(t);
   }
   el.replaceChildren(frag);
   el.classList.toggle("dimming", !!q);
-  $("mapInfo").textContent = `${fmtN(funds.length)}개 펀드 · ${S.period} ${PLABEL[S.period]}`+(q?` · 검색 일치 ${fmtN(funds.filter(f=>match(f,q)).length)}개`:"");
+  $("mapInfo").textContent = `${fmtN(funds.length)}개 펀드 · ${S.period} ${PLABEL[S.period]}${S.size!=="assets"?` · 면적 ${S.size==="equal"?"균등":"완화"}`:""}`+(q?` · 검색 일치 ${fmtN(funds.filter(f=>match(f,q)).length)}개`:"");
 }
 
 // 이벤트 위임: 호버·클릭
@@ -510,6 +558,7 @@ function renderMap(){
   el.addEventListener("mouseleave", ()=> tip.style.display="none");
   el.addEventListener("click", e=>{ const t=e.target.closest(".tile"); if(t) select(t.dataset.id); });
 })();
+const sizeRankTxt = f => { const q=SIZEPCT.get(f.fund_id); return q==null?"-": q>=.5 ? `상위 ${Math.max(1,Math.round((1-q)*100))}%` : `하위 ${Math.max(1,Math.round(q*100))}%`; };
 function showTip(f,x,y){
   const tip=$("tip"), p=S.period, rk=RANK[p]?.get(f.fund_id);
   const rows=PERIODS.map(k=>`<tr class="${k===p?"cur":""}"><td>${k} <span style="color:var(--tx3)">${PLABEL[k]}</span></td><td class="num" style="color:${txtColor(f.ret?.[k])}">${fmt(f.ret?.[k])}</td></tr>`).join("");
@@ -517,6 +566,7 @@ function showTip(f,x,y){
     <div class="tn">${esc(f.fund_name)}</div>
     <div><span class="tb num" style="color:${txtColor(f.ret?.[p])}">${fmt(f.ret?.[p])}</span> <span style="color:var(--tx3)">${p} ${PLABEL[p]}</span></div>
     <table>${rows}</table>
+    <div class="tf num" style="color:var(--tx2)">${esc(f.fund_type)} 평균 대비 ${p} <b style="color:${txtColor(excess(f,p))}">${fmtP(excess(f,p))}</b> · 순자산 규모 ${sizeRankTxt(f)}</div>
     <div class="tf num">기준가 ${fmtN(f.nav,2)}원 · 순자산 ${fmtN(f.net_assets_100m,0)}억 · 총보수 ${f.total_fee_pct??"-"}%${rk!=null?` · ${esc(f.fund_type)} 내 상위 ${Math.max(1,Math.round((1-rk)*100))}%`:""}</div>`;
   tip.style.display="block";
   const tw=tip.offsetWidth, th=tip.offsetHeight;
@@ -524,10 +574,55 @@ function showTip(f,x,y){
   tip.style.left=X+"px"; tip.style.top=Y+"px";
 }
 
+// ═══════════════════ 렌더: 규모×성과 산점도 ═══════════════════
+// 가로 = 순자산(로그), 세로 = 기간 수익률(또는 유형 평균 대비). 히트맵에서 작게 보이는 소형 펀드도 같은 크기의 점으로 비교
+function renderScatter(){
+  const el=$("scatter"), W=el.clientWidth, H=el.clientHeight, q=S.q.trim().toLowerCase();
+  const ex=S.scale==="excess", yv=f=> ex ? excess(f) : f.ret?.[S.period];
+  const pts=filtered().filter(f=>yv(f)!=null && (f.net_assets_100m||0)>0);
+  if(!pts.length){ el.innerHTML='<div class="empty">조건에 맞는 펀드가 없습니다.</div>'; return; }
+  const m={l:58,r:16,t:26,b:40};
+  const xs=d3.scaleLog().domain(d3.extent(pts,f=>f.net_assets_100m)).nice().range([m.l,W-m.r]);
+  const ys=pts.map(yv).sort(d3.ascending), lo=d3.quantileSorted(ys,.005), hi=d3.quantileSorted(ys,.995);
+  const pad=(hi-lo)*.08||1, y=d3.scaleLinear().domain([Math.min(lo-pad,0),Math.max(hi+pad,0)]).nice().range([H-m.b,m.t]).clamp(true);
+  const medX=d3.median(pts,f=>f.net_assets_100m), medY=d3.median(ys);
+  const svg=d3.create("svg").attr("width",W).attr("height",H);
+  svg.append("g").attr("class","grid").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(-(W-m.l-m.r)).tickFormat("")).select(".domain").remove();
+  svg.append("g").attr("class","ax").attr("transform",`translate(0,${H-m.b})`)
+     .call(d3.axisBottom(xs).ticks(6,"~s").tickFormat(v=>{ const k=Math.log10(v); return Number.isInteger(k)? fmtAmt(v):""; }));
+  svg.append("g").attr("class","ax").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(v=>(v>0?"+":"")+v+(ex?"%p":"%")));
+  svg.append("line").attr("class","zero").attr("x1",m.l).attr("x2",W-m.r).attr("y1",y(0)).attr("y2",y(0));
+  svg.append("line").attr("class","med").attr("x1",xs(medX)).attr("x2",xs(medX)).attr("y1",m.t).attr("y2",H-m.b);
+  svg.append("text").attr("class","cap").attr("x",xs(medX)+6).attr("y",m.t+12).text(`순자산 중앙값 ${fmtAmt(medX)}`);
+  svg.append("text").attr("class","cap").attr("x",m.l+8).attr("y",m.t+12).text(`← 소형 · ${ex?"유형 평균 상회":"수익률 높음"}`);
+  svg.append("text").attr("class","cap").attr("text-anchor","end").attr("x",W-m.r-6).attr("y",m.t+12).text(`대형 · ${ex?"유형 평균 상회":"수익률 높음"} →`);
+  svg.append("text").attr("class","axt").attr("x",W-m.r).attr("y",H-8).attr("text-anchor","end").text("순자산 (로그 눈금)");
+  svg.append("text").attr("class","axt").attr("x",10).attr("y",14).text(ex?`${S.period} ${PLABEL[S.period]} · 유형 평균 대비(%p)`:`${S.period} ${PLABEL[S.period]} 수익률(%)`);
+  const g=svg.append("g");
+  const ord=pts.slice().sort((a,b)=>(b.net_assets_100m||0)-(a.net_assets_100m||0));   // 큰 점을 먼저 그려 작은 점이 위로
+  g.selectAll("circle").data(ord).join("circle")
+    .attr("cx",f=>xs(f.net_assets_100m)).attr("cy",f=>y(yv(f)))
+    .attr("r",f=>Math.max(3,Math.min(9,2.2+Math.log10(f.net_assets_100m+1)*1.3)))
+    .attr("fill",f=>bucketColor(bucket(f))||"#555")
+    .attr("data-id",f=>f.fund_id).attr("data-b",f=>bucket(f))
+    .attr("class",f=>(S.sel===f.fund_id?"sel ":"")+(q&&match(f,q)?"hit":""));
+  el.replaceChildren(svg.node());
+  el.classList.toggle("dimming",!!q);
+  const out=pts.filter(f=>{ const v=yv(f); return v<y.domain()[0]||v>y.domain()[1]; }).length;
+  $("mapInfo").textContent=`${fmtN(pts.length)}개 펀드 · 점 크기 = 순자산${out?` · 범위 밖 ${out}개는 가장자리에 표시`:""}`;
+}
+(function bindScatter(){
+  const el=$("scatter"), touch=matchMedia("(hover:none)").matches;
+  el.addEventListener("mousemove",e=>{ if(touch) return; const c=e.target.closest("circle"); if(!c){ $("tip").style.display="none"; return; }
+    const f=DATA.byId.get(c.dataset.id); if(f) showTip(f,e.clientX,e.clientY); });
+  el.addEventListener("mouseleave",()=>$("tip").style.display="none");
+  el.addEventListener("click",e=>{ const c=e.target.closest("circle"); if(c) select(c.dataset.id); });
+})();
+
 // ═══════════════════ 렌더: 표 ═══════════════════
 const COLS=[["insurer_name","보험사","l"],["fund_name","펀드명","l fn"],["fund_type","유형","l"],["region","지역","l"],
-  ["net_assets_100m","순자산(억)",""],["nav","기준가",""],["total_fee_pct","총보수(%)",""],...PERIODS.map(p=>["ret."+p,p,""])];
-const getv=(f,k)=>k.startsWith("ret.")? f.ret?.[k.slice(4)] : f[k];
+  ["net_assets_100m","순자산(억)",""],["nav","기준가",""],["total_fee_pct","총보수(%)",""],["exc","유형대비(%p)",""],...PERIODS.map(p=>["ret."+p,p,""])];
+const getv=(f,k)=>k==="exc"? excess(f) : k.startsWith("ret.")? f.ret?.[k.slice(4)] : f[k];
 function renderTable(){
   const q=S.q.trim().toLowerCase();
   let rows=filtered().filter(f=>!q||match(f,q));
@@ -540,6 +635,7 @@ function renderTable(){
   const body=rows.slice(0,2500).map(f=>`<tr data-id="${f.fund_id}" class="${S.sel===f.fund_id?"sel":""}">`+COLS.map(([key,,cls])=>{
     const v=getv(f,key);
     if(key.startsWith("ret.")) return `<td class="num${key===cur?" cur":""}" style="color:${txtColor(v)}">${fmt(v)}</td>`;
+    if(key==="exc") return `<td class="num" style="color:${txtColor(v)}" title="${S.period} ${esc(f.fund_type)} 순자산 가중 평균 대비">${fmtP(v)}</td>`;
     if(key==="net_assets_100m") return `<td class="num">${fmtN(v,0)}</td>`;
     if(key==="nav") return `<td class="num">${fmtN(v,2)}</td>`;
     if(key==="total_fee_pct") return `<td class="num">${v??"-"}</td>`;
@@ -550,14 +646,15 @@ function renderTable(){
 }
 $("ft").addEventListener("click",e=>{
   const th=e.target.closest("th");
-  if(th){ const k=th.dataset.k; if((S.sortK||"ret."+S.period)===k) S.sortD*=-1; else { S.sortK=k; S.sortD=(k.startsWith("ret.")||k==="net_assets_100m"||k==="nav")?-1:1; } renderTable(); return; }
+  if(th){ const k=th.dataset.k; if((S.sortK||"ret."+S.period)===k) S.sortD*=-1; else { S.sortK=k; S.sortD=(k.startsWith("ret.")||k==="exc"||k==="net_assets_100m"||k==="nav")?-1:1; } renderTable(); return; }
   const tr=e.target.closest("tr[data-id]"); if(tr) select(tr.dataset.id);
 });
 
 // ═══════════════════ 렌더: 상세·상하위 ═══════════════════
 function select(id){ S.sel = S.sel===id ? null : id; renderDetail();
-  document.querySelectorAll(".tile.sel,#ft tr.sel").forEach(x=>x.classList.remove("sel"));
-  if(S.sel) document.querySelectorAll(`.tile[data-id="${CSS.escape(S.sel)}"],#ft tr[data-id="${CSS.escape(S.sel)}"]`).forEach(x=>x.classList.add("sel"));
+  document.querySelectorAll(".tile.sel,#ft tr.sel,#scatter circle.sel").forEach(x=>x.classList.remove("sel"));
+  if(S.sel){ const q=CSS.escape(S.sel); document.querySelectorAll(`.tile[data-id="${q}"],#ft tr[data-id="${q}"],#scatter circle[data-id="${q}"]`).forEach(x=>x.classList.add("sel"));
+    const c=document.querySelector(`#scatter circle[data-id="${q}"]`); if(c) c.parentNode.appendChild(c); }
   if (S.sel && innerWidth<1180) $("det").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function renderDetail(){
@@ -577,30 +674,33 @@ function renderDetail(){
     </div>
     <h3><span>기간별 수익률</span><small>누적 · 연환산 아님</small></h3>
     <div class="pbars">${bars}</div>
-    <div class="ranks"><span class="pill">${esc(f.fund_type)} 내 ${p} ${rk(p)}</span><span class="pill">1Y ${rk("1Y")}</span></div>
+    <div class="ranks"><span class="pill">${esc(f.fund_type)} 평균 대비 ${p} <b class="num" style="color:${txtColor(excess(f,p))}">${fmtP(excess(f,p))}</b></span>
+      <span class="pill">유형 내 ${p} ${rk(p)}</span>${p!=="1Y"?`<span class="pill">유형 내 1Y ${rk("1Y")}</span>`:""}<span class="pill">순자산 규모 ${sizeRankTxt(f)}</span></div>
+    ${(f.net_assets_100m??0)<100?`<div class="hint" style="margin-top:8px;color:#d9b45a">순자산 100억 원 미만 소형 펀드입니다. 규모가 작은 펀드는 수익률 변동이 크거나 운용 지속성(통폐합 등)이 달라질 수 있으니 공시 자료를 함께 확인하세요.</div>`:""}
     <div class="hint" style="margin-top:10px">원자료: <a href="https://pub.insure.or.kr/compareDis/variableInsrn/fundDay/list.do" target="_blank" rel="noopener" style="color:var(--acc)">생명보험협회 공시실 펀드현황</a></div>`;
   box.querySelectorAll(".pbar").forEach(el=>el.onclick=()=>{ setPeriod(el.dataset.p); });
 }
 function renderMovers(){
-  const p=S.period, arr=filtered().filter(f=>f.ret?.[p]!=null);
-  arr.sort((a,b)=> S.mv==="top" ? b.ret[p]-a.ret[p] : a.ret[p]-b.ret[p]);
-  $("mvTitle").textContent=`${p} 수익률 ${S.mv==="top"?"상위":"하위"} 10`;
+  const p=S.period, ex=S.scale==="excess", m=f=> ex ? excess(f,p) : f.ret?.[p];
+  const arr=filtered().filter(f=>m(f)!=null);
+  arr.sort((a,b)=> S.mv==="top" ? m(b)-m(a) : m(a)-m(b));
+  $("mvTitle").textContent=`${p} ${ex?"유형 평균 대비":"수익률"} ${S.mv==="top"?"상위":"하위"} 10`;
   $("movers").innerHTML = arr.slice(0,10).map((f,i)=>`<div class="li" data-id="${f.fund_id}"><span class="k num">${i+1}</span>
     <span class="a"><b>${esc(f.fund_name)}</b><span>${esc(shortIns(f.insurer_name))} · ${esc(f.fund_type)} · ${fmtN(f.net_assets_100m,0)}억</span></span>
-    <span class="r num" style="color:${txtColor(f.ret[p])}">${fmt(f.ret[p])}</span></div>`).join("") || `<div class="hint">해당 기간 데이터가 없습니다.</div>`;
+    <span class="r num" style="color:${txtColor(m(f))}">${ex?fmtP(m(f)):fmt(f.ret[p])}</span></div>`).join("") || `<div class="hint">해당 기간 데이터가 없습니다.</div>`;
 }
 $("movers").addEventListener("click",e=>{ const li=e.target.closest(".li"); if(!li) return;
   const f=DATA.byId.get(li.dataset.id); if(S.zoom && zoomKey(f)!==S.zoom) S.zoom=null; S.sel=null; renderAll(); select(li.dataset.id); });
 
 // ═══════════════════ 범례·경로 ═══════════════════
 function renderLegend(){
-  $("lgTitle").textContent = S.scale==="rank" ? "유형 내 백분위" : `${S.period} 등락률(%)`;
+  $("lgTitle").textContent = S.scale==="rank" ? "유형 내 백분위" : S.scale==="excess" ? `${S.period} 유형 평균 대비(%p)` : `${S.period} 등락률(%)`;
   $("lgChips").innerHTML = legendItems().map(([b,l])=>`<span data-b="${b}" class="${b==="na"?"na":""}" style="${b==="na"?"":`background:${bucketColor(b)}`}">${l}</span>`).join("");
-  $("lgNote").textContent = S.scale==="rank" ? "같은 펀드유형 안에서의 상대 위치" :
+  $("lgNote").textContent = S.scale==="rank" ? "같은 펀드유형 안에서의 상대 위치" : S.scale==="excess" ? "같은 펀드유형의 순자산 가중 평균 수익률과의 차이" :
     `${S.conv==="kr"&&S.pal==="std"?"국내식":S.pal==="cvd"?"색각 친화":"해외식"} · 칩에 마우스를 올리면 해당 구간만 강조`;
 }
-$("lgChips").addEventListener("mouseover",e=>{ const c=e.target.closest("span[data-b]"); if(c) $("map").dataset.hl=c.dataset.b; });
-$("lgChips").addEventListener("mouseleave",()=>delete $("map").dataset.hl);
+$("lgChips").addEventListener("mouseover",e=>{ const c=e.target.closest("span[data-b]"); if(c){ $("map").dataset.hl=c.dataset.b; $("scatter").dataset.hl=c.dataset.b; } });
+$("lgChips").addEventListener("mouseleave",()=>{ delete $("map").dataset.hl; delete $("scatter").dataset.hl; });
 function renderCrumb(){
   $("crumb").innerHTML = S.zoom ? `<button id="zoomOut">← 전체</button> &nbsp;/&nbsp; <b>${esc(S.zoom)}</b> <span style="color:var(--tx3)">(Esc로 돌아가기)</span>`
     : `<b>${S.group==="insurer"?"보험사":"펀드유형"}별</b> <span style="color:var(--tx3)">· 머리글을 누르면 확대</span>`;
@@ -616,6 +716,7 @@ $("segPeriod").addEventListener("click",e=>{ const b=e.target.closest("button");
 bindSeg("segGroup","group",()=>{ S.zoom=null; });
 bindSeg("segRegion","region");
 bindSeg("segScale","scale");
+bindSeg("segSize","size");
 bindSeg("segConv","conv");
 bindSeg("segPal","pal");
 bindSeg("segView","view");
@@ -642,18 +743,20 @@ $("insAll").onclick=()=>setIns(null);
 $("insNone").onclick=()=>setIns([]);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(document.querySelector(".pop.on")) closePops(); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
   if(e.key==="/" && document.activeElement!==$("q")){ e.preventDefault(); $("q").focus(); } });
-let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>S.view==="map"&&renderMap(),100); });
+let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.view==="map") renderMap(); else if(S.view==="scatter") renderScatter(); },100); });
 
 function renderAll(){
   const hasP = p => DATA.funds.some(f=>f.ret?.[p]!=null);
   $("segPeriod").innerHTML = PERIODS.map(p=>`<button data-v="${p}" aria-pressed="${p===S.period}" class="${hasP(p)?"":"nodata"}" title="${PLABEL[p]}${hasP(p)?"":" · 데이터 없음"}">${p}</button>`).join("");
-  ["segGroup","segRegion","segScale","segConv","segPal","segView"].forEach((id,i)=>setSeg(id,[S.group,S.region,S.scale,S.conv,S.pal,S.view][i]));
+  ["segGroup","segRegion","segScale","segConv","segPal","segView","segSize"].forEach((id,i)=>setSeg(id,[S.group,S.region,S.scale,S.conv,S.pal,S.view,S.size][i]));
+  $("segSize").style.display = $("sizeLbl").style.display = S.view==="map" ? "" : "none";
+  $("scatter").style.display = S.view==="scatter" ? "block" : "none";
   $("showTiny").checked=S.showTiny;
   $("map").style.display = S.view==="map" ? "" : "none";
   $("tablewrap").style.display = S.view==="table" ? "block" : "none";
   $("tip").style.display="none";
   renderIns(); renderKPIs(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
-  S.view==="map" ? renderMap() : renderTable();
+  S.view==="map" ? renderMap() : S.view==="scatter" ? renderScatter() : renderTable();
 }
 
 // 보험사 목록(순자산 큰 순) — 지역·유형·소형 필터 반영한 펀드 수 표시

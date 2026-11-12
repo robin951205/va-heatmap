@@ -75,6 +75,20 @@ a{color:var(--acc)}
 .tchip[aria-pressed="true"]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:var(--acc2)}
 .tchip.off{opacity:.45}
 
+/* ── 오늘의 요약 ── */
+.brief{display:flex;align-items:flex-start;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:11px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.brief .tag{flex:none;font-size:12px;font-weight:700;color:var(--acc);background:var(--acc2);border-radius:999px;padding:3px 10px;margin-top:1px}
+.brief .txt{flex:1;min-width:0;font-size:13.5px;line-height:1.65;color:var(--tx2)}
+.brief .txt b{color:var(--tx);font-weight:600}
+.brief.fold .txt{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.brief .tg{flex:none;border:0;background:none;color:var(--acc);font-size:12.5px;font-weight:600;padding:2px 0}
+.brief .note{display:block;font-size:11.5px;color:var(--tx3);margin-top:3px}
+.mkt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mkt span{display:inline-flex;gap:6px;align-items:baseline;font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:3px 8px;background:var(--panel2);color:var(--tx2)}
+.mkt span b{color:var(--tx);font-weight:600}
+.brief.fold .mkt{display:none}
+
 /* ── 툴바 ── */
 .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);
   border-radius:var(--r);padding:8px 10px;box-shadow:var(--shadow)}
@@ -253,6 +267,7 @@ footer b{color:var(--tx2);font-weight:600}
   #mFilterBtn b{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--acc);color:var(--accTx);font-size:11px;margin-left:2px}
   #mFilterBtn b:empty{display:none}
   #mSticky .breadth{margin:7px 0 0;height:5px}
+  .brief{padding:9px 11px;gap:8px;margin-bottom:8px} .brief .txt{font-size:13px} .brief .tag{font-size:11.5px;padding:2px 8px}
   /* 요약 카드는 유형 칩 한 줄만 */
   .kpis{display:block;margin-bottom:8px} .kpis .kpi:not(:nth-child(4)){display:none}
   .kpis .kpi{padding:0;border:0;background:none;box-shadow:none} .kpis .kpi .lb{display:none}
@@ -343,6 +358,13 @@ footer b{color:var(--tx2);font-weight:600}
       <button class="iconbtn" id="mFilterBtn">필터 <b id="mFilterCnt"></b></button>
     </div>
     <div class="breadth" id="mBreadth"></div>
+  </div>
+
+  <!-- 오늘의 요약 (공시 데이터로 자동 작성, 전망 없음) -->
+  <div class="brief fold" id="brief" aria-live="polite">
+    <span class="tag">오늘의 요약</span>
+    <div class="txt" id="briefTxt"></div>
+    <button class="tg" id="briefTg" aria-expanded="false">펼치기</button>
   </div>
 
   <!-- 요약 지표 -->
@@ -881,7 +903,7 @@ function renderAll(){
   $("map").style.display = S.view==="map" ? "" : "none";
   $("tablewrap").style.display = S.view==="table" ? "block" : "none";
   $("tip").style.display="none";
-  renderIns(); renderKPIs(); renderMobileBar(); syncStick(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
+  renderIns(); renderKPIs(); renderMobileBar(); renderBrief(); syncStick(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
   S.view==="map" ? renderMap() : S.view==="scatter" ? renderScatter() : renderTable();
 }
 
@@ -943,6 +965,34 @@ $("tablewrap").addEventListener("click",e=>{
   const li=e.target.closest(".mcards .li"); if(li) select(li.dataset.id);
 });
 
+// ═══════════════════ 오늘의 요약 (사실 기반 자동 문장 · 전망·의견 없음) ═══════════════════
+// 필터와 무관하게 전체 펀드 기준. 숫자는 화면과 같은 계산(순자산 가중 평균)을 사용
+let MARKET = null;
+function briefText(){
+  const F=DATA.funds, bd=new Date(DATA.base_date+"T00:00:00+09:00"), md=`${bd.getMonth()+1}월 ${bd.getDate()}일`;
+  const b0=STEPS["1D"][0], v1=F.map(f=>f.ret?.["1D"]).filter(v=>v!=null);
+  const up=v1.filter(v=>v>=b0).length, dn=v1.filter(v=>v<=-b0).length, fl=v1.length-up-dn;
+  const c=(v,d=2)=>`<b style="color:${txtColor(v)}">${fmt(v,d)}</b>`;
+  const types=TYPE_ORDER.filter(t=>t!=="기타"&&t!=="MMF").map(t=>[t,wavg(F.filter(f=>f.fund_type===t),"1D")]).filter(x=>x[1]!=null);
+  const out=[];
+  if (v1.length) out.push(`${md} 기준가 기준, 변액보험 펀드 ${fmtN(F.length)}개 중 <b>${fmtN(up)}개가 오르고 ${fmtN(dn)}개가 내렸습니다</b>(보합 ${fmtN(fl)}개).`);
+  if (types.length) out.push(`전영업일 대비 유형별 순자산 가중 평균은 ${types.map(([t,v])=>`${t} ${c(v)}`).join(", ")}입니다.`);
+  const dom=wavg(F.filter(f=>f.region==="국내"),"1D"), ovs=wavg(F.filter(f=>f.region==="해외"),"1D");
+  if (dom!=null&&ovs!=null&&Math.abs(dom-ovs)>=0.05) out.push(`지역별로는 ${ovs>dom?"해외":"국내"}투자 펀드(${c(ovs>dom?ovs:dom)})가 ${ovs>dom?"국내":"해외"}투자 펀드(${c(ovs>dom?dom:ovs)})보다 높았습니다.`);
+  const y=types.map(([t])=>[t,wavg(F.filter(f=>f.fund_type===t),"1Y")]).filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]);
+  if (y.length>1) out.push(`1년 기준으로는 ${y[0][0]} ${c(y[0][1])}, ${y[y.length-1][0]} ${c(y[y.length-1][1])}로 유형 간 차이가 ${(y[0][1]-y[y.length-1][1]).toFixed(1)}%p입니다.`);
+  return out.join(" ");
+}
+function marketHtml(){
+  if (!MARKET || !Array.isArray(MARKET.indices) || !MARKET.indices.length) return "";
+  const it=MARKET.indices.map(m=>{ const d=new Date(m.date+"T00:00:00"); return `<span title="${esc(m.source||"")}">${esc(m.name)} <b class="num">${fmtN(m.close,2)}</b><b class="num" style="color:${txtColor(m.chg_pct)}">${fmt(m.chg_pct)}</b><small>${d.getMonth()+1}/${d.getDate()} 종가</small></span>`; }).join("");
+  return `<div class="mkt">${it}</div><span class="note">지수: ${esc(MARKET.source_note||"")} · 지수 기준일은 펀드 기준일과 다를 수 있습니다</span>`;
+}
+function renderBrief(){
+  $("briefTxt").innerHTML = briefText() + `<span class="note">공시 기준가로 자동 작성한 과거 실적 요약이며, 향후 전망이나 투자 권유가 아닙니다.</span>` + marketHtml();
+}
+$("briefTg").onclick=()=>{ const f=$("brief").classList.toggle("fold"); $("briefTg").textContent=f?"펼치기":"접기"; $("briefTg").setAttribute("aria-expanded",!f); };
+
 // ═══════════════════ 시작 ═══════════════════
 const MOCK = { base_date:"2026-01-01", source:"MOCK", funds:[
   ["MOCKA_01","MOCK가나생명","글로벌주식형","주식형","해외",8500,1.35,4.80,22.10],["MOCKA_02","MOCK가나생명","국내채권형","채권형","국내",6200,0.02,0.35,4.10],
@@ -960,6 +1010,7 @@ async function boot(){
   } catch(_){ DATA=MOCK; IS_MOCK=true; }
   DATA.byId=new Map(DATA.funds.map(f=>[f.fund_id,f]));
   computeRanks();
+  try { const r=await fetch("data/market.json",{cache:"no-cache"}); if(r.ok) MARKET=await r.json(); } catch(_){}
   $("mockBadge").style.display = IS_MOCK ? "" : "none";
   const bd=new Date(DATA.base_date+"T00:00:00+09:00");
   $("baseDate").textContent = DATA.base_date + " ("+"일월화수목금토"[bd.getDay()]+")";

@@ -97,6 +97,13 @@ jobs:
             python scripts/scrape_klia.py --anchors --prune-months 14
           fi
 
+      - name: 주요 지수 (코스피, 공공데이터 API · 키 없으면 건너뜀)
+        if: steps.cfg.outputs.live == 'true'
+        continue-on-error: true
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+        run: python scripts/fetch_market.py
+
       - name: latest.json 생성·점검
         if: steps.cfg.outputs.live == 'true'
         run: |

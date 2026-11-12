@@ -1,0 +1,61 @@
+# 평일 1회: 공시실 수집 → data/latest.json 생성 → 커밋 → GitHub Pages 자동 반영
+# 안전장치: 저장소 변수 LIVE_DATA 가 'true' 일 때만 실데이터 수집·공개 (그 전엔 화면이 MOCK 으로 표시됨)
+name: daily-nav-batch
+
+on:
+  schedule:
+    - cron: "37 1 * * 2-6"        # KST 화~토 10:37 → 전 영업일 기준가 (공시 갱신 시각 확인 필요)
+  workflow_dispatch:
+    inputs:
+      backfill_start:
+        description: "과거 이력 적재 시작일 (YYYY-MM-DD, 비우면 직전 영업일 1일치)"
+        required: false
+      backfill_end:
+        description: "과거 이력 적재 종료일 (YYYY-MM-DD) — 1회 6개월 이내 권장"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nav-batch
+  cancel-in-progress: false
+
+jobs:
+  batch:
+    if: vars.LIVE_DATA == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      KLIA_CONFIG: scripts/klia_request.json
+      KLIA_RAW_DIR: data/raw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install pandas openpyxl requests lxml
+
+      - name: 공시실 수집
+        run: |
+          if [ -n "${{ inputs.backfill_start }}" ] && [ -n "${{ inputs.backfill_end }}" ]; then
+            python scripts/scrape_klia.py --backfill "${{ inputs.backfill_start }}" "${{ inputs.backfill_end }}"
+          else
+            python scripts/scrape_klia.py
+          fi
+
+      - name: latest.json 생성
+        run: python scripts/build_latest.py data/raw -o data/latest.json
+
+      - name: 커밋 (Pages 자동 반영)
+        if: always()
+        run: |
+          git config user.name "nav-batch"
+          git config user.email "nav-batch@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -m "data: 기준가 배치 $(TZ=Asia/Seoul date +%F)"
+          git push

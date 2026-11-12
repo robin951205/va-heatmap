@@ -1,0 +1,41 @@
+{
+  "_설명": "공시실 > 변액보험 > 펀드현황(일별) 조회. GA 요청의 dl 값에서 복원. {date}=기준일, {date_1y}=기준일-1년, {page}=페이지번호",
+  "url": "https://pub.insure.or.kr/compareDis/variableInsrn/fundDay/list.do",
+  "method": "GET",
+  "body": "form",
+  "headers": {
+    "Referer": "https://pub.insure.or.kr/compareDis/variableInsrn/fundDay/list.do"
+  },
+  "params": {
+    "pageIndex": "{page}",
+    "updateColumn": "",
+    "updateMethod": "",
+    "search_stdYmd": "{date}",
+    "search_item": "itemTypeAll",
+    "search_stdStartYmd": "{date_1y}",
+    "search_stdEndYmd": "{date}",
+    "search_parentType": "parentTypeAll",
+    "search_childType": "",
+    "search_networth": "networthAll",
+    "search_invType": "invTypeAll",
+    "search_invDetailType": "",
+    "all_search_memberCd": "all",
+    "search_memberCd": ["L01","L02","L03","L04","L05","L31","L34","L33","L71","L74","L72","L61","L11","L77","L63","L78","L17","L51","L52","L41","L42","L43"],
+    "search_payType": "",
+    "search_totStartPay": "",
+    "search_totEndPay": "",
+    "search_assetWeight": "assetWeighTypeAll",
+    "search_startSettingYmd": "1980-01-01",
+    "search_endSettingYmd": "{date}",
+    "search_fundNm": "",
+    "pageUnit": "100"
+  },
+  "date_format": "%Y-%m-%d",
+  "response": "html",
+  "table_index": null,
+  "paginate": true,
+  "max_pages": 300,
+  "date_column": "기준일",
+  "dedupe_keys": ["보험사", "펀드코드", "기준일"],
+  "user_agent": "Mozilla/5.0 (VA-Fund-Heatmap personal batch)"
+}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VA Fund Heatmap · 변액보험펀드 기준가 히트맵</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  body { font-family: 'Noto Sans KR', system-ui, sans-serif; background:#16181d; color:#e6e8ec; }
+  .seg button { padding:4px 12px; font-size:13px; color:#aab0bb; border-radius:4px; }
+  .seg button[aria-pressed="true"] { background:#3a3f4b; color:#fff; font-weight:600; }
+  .seg { background:#22252c; border:1px solid #30343d; border-radius:6px; padding:2px; display:inline-flex; gap:2px; }
+  #map { position:relative; width:100%; height:calc(100vh - 210px); min-height:420px; }
+  .tile { position:absolute; overflow:hidden; border:1px solid #16181d; box-sizing:border-box;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+          cursor:default; transition:filter .05s; }
+  .tile:hover { filter:brightness(1.25); outline:2px solid #fff; outline-offset:-2px; z-index:2; }
+  .tile .nm { font-weight:600; line-height:1.15; padding:0 4px; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+  .tile .rt { font-weight:500; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+  .grp { position:absolute; box-sizing:border-box; pointer-events:none; }
+  .grp .hd { position:absolute; left:0; right:0; top:0; height:18px; font-size:11px; font-weight:700;
+             color:#cfd3da; padding:1px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .grp.l1 { border:1px solid #5a606d; background:#20232a; }
+  .grp.l1 > .hd { background:#2c3039; color:#fff; font-size:12px; }
+  .grp.l2 > .hd { color:#9aa1ad; font-weight:500; }
+  #tip { position:fixed; pointer-events:none; z-index:50; min-width:240px; background:#0f1115f2;
+         border:1px solid #444a56; border-radius:6px; padding:10px 12px; font-size:12px; display:none;
+         box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  #tip table { width:100%; border-collapse:collapse; }
+  #tip td { padding:1px 0; }
+  #tip td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  #tip tr.sel td { font-weight:700; color:#fff; }
+  .legend-bar { height:10px; width:220px; border-radius:2px; }
+</style>
+</head>
+<body class="p-4">
+
+<header class="flex flex-wrap items-end justify-between gap-3 mb-3">
+  <div>
+    <h1 class="text-lg font-bold">VA Fund Heatmap <span id="mockBadge" class="text-xs font-medium px-1.5 py-0.5 ml-1 rounded bg-yellow-500 text-black align-middle">MOCK 데이터</span></h1>
+    <div class="text-xs text-gray-400 mt-0.5">
+      기준일: <b id="baseDate" class="text-gray-200"></b> · 면적 = 순자산 · 색 = 기준가 등락률
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="seg" id="segGroup" role="group" aria-label="그룹">
+      <button data-v="insurer" aria-pressed="true">보험사별</button>
+      <button data-v="type" aria-pressed="false">펀드유형별</button>
+    </div>
+    <div class="seg" id="segPeriod" role="group" aria-label="기간">
+      <button data-v="1D" aria-pressed="true">1D</button>
+      <button data-v="1M" aria-pressed="false">1M</button>
+      <button data-v="1Y" aria-pressed="false">1Y</button>
+    </div>
+    <div class="seg" id="segScale" role="group" aria-label="색상 스케일">
+      <button data-v="abs" aria-pressed="true">절대</button>
+      <button data-v="rel" aria-pressed="false">유형 내 상대(z)</button>
+      <button data-v="rank" aria-pressed="false">유형 내 순위</button>
+    </div>
+    <label class="text-xs text-gray-400 flex items-center gap-1 cursor-pointer">
+      <input type="checkbox" id="showTiny"> 순자산 10억 미만 표시
+    </label>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-gray-400">
+  <div class="flex items-center gap-2">
+    <span id="lgMin"></span><div class="legend-bar" id="lgBar"></div><span id="lgMax"></span>
+    <span class="ml-2" id="lgNote"></span>
+  </div>
+  <div id="periodNote"></div>
+</div>
+
+<footer class="mt-3 pt-2 border-t border-gray-700 text-[11px] leading-relaxed text-gray-500">
+  ※ 수익률은 기준가 기준(특별계정 운용보수 차감 후)이며, 계약자 적립금 수익률과 다릅니다(보험관계비용 등 미반영).
+  ※ 과거 수익률은 미래 수익을 보장하지 않습니다. 본 화면은 특정 펀드의 추천이나 펀드변경 권유가 아닙니다.<br>
+  데이터 출처: 생명보험협회 공시실(기준일 확정치, 일 1회 갱신). 본 사이트는 개인이 제작한 비공식 정보 시각화로, 생명보험협회 및 특정 보험회사와 무관하며 원자료와 차이가 있을 수 있습니다.<br>
+  <b id="mockNote" class="text-yellow-500">현재 화면은 sample_funds.csv 기반 MOCK 데이터로, 실제 보험사·펀드와 무관합니다.</b>
+</footer>
+
+<div id="tip"></div>
+
+<script>
+// ===== 데이터: sample_funds.csv → latest.json 형태로 변환해 내장 (MOCK) =====
+let LATEST = {
+  base_date: null, // sample_funds.csv에 기준일 없음 → 확인 필요
+  source: "생명보험협회 공시실",
+  funds: [
+    ["MOCKA_01","MOCK가나생명","글로벌주식형","주식형","해외","MOCK운용A",8500,2450.12,1.35,4.80,22.10,0.62],
+    ["MOCKA_02","MOCK가나생명","국내채권형","채권형","국내","MOCK운용B",6200,1580.40,0.02,0.35,4.10,0.38],
+    ["MOCKA_03","MOCK가나생명","자산배분혼합형","주식혼합형","글로벌혼합","MOCK운용A",4100,1890.77,0.61,2.20,11.40,0.55],
+    ["MOCKB_01","MOCK다라생명","국내주식형","주식형","국내","MOCK운용C",3900,2105.30,-0.84,-2.10,9.80,0.58],
+    ["MOCKB_02","MOCK다라생명","해외채권형","채권형","해외","MOCK운용D",2700,1320.05,-0.05,0.90,3.20,0.45],
+    ["MOCKB_03","MOCK다라생명","MMF형","MMF","국내","MOCK운용C",900,1120.88,0.01,0.22,2.70,0.20],
+    ["MOCKC_01","MOCK마바생명","미국주식형","주식형","해외","MOCK운용E",5300,3010.64,1.92,6.10,27.50,0.70],
+    ["MOCKC_02","MOCK마바생명","채권혼합형","채권혼합형","국내","MOCK운용F",3100,1655.19,0.18,0.95,6.30,0.48],
+    ["MOCKC_03","MOCK마바생명","일본주식형","주식형","해외","MOCK운용E",600,1410.02,-1.40,-3.50,12.20,0.72],
+  ].map(r => ({
+    fund_id:r[0], insurer_name:r[1], fund_name:r[2], fund_type:r[3], region:r[4], manager:r[5],
+    net_assets_100m:r[6], nav:r[7], total_fee_pct:r[11],
+    ret:{ "1D":r[8], "1W":null, "1M":r[9], "3M":null, "6M":null, "YTD":null, "1Y":r[10], "3Y":null }
+  }))
+};
+
+// ===== 설정 =====
+const TYPE_ORDER = ["주식형","주식혼합형","채권혼합형","채권형","MMF","기타"];
+const REGION_ORDER = ["국내","해외","글로벌혼합"];
+const ABS_MAX = { "1D":2, "1M":5, "1Y":25 };      // 절대 스케일 포화점(±%)
+const NEUTRAL_BAND = { "1D":0.05, "1M":0.2, "1Y":1 }; // 0% 부근 중립 구간(±%)
+const TINY_THRESHOLD = 10;                          // 억 원
+const PERIOD_LABEL = { "1D":"전영업일 대비", "1M":"1개월 누적", "1Y":"1년 누적" };
+// 국내식: 상승=빨강, 하락=파랑, 0 부근 회색
+const C_DOWN = "#2f5fc4", C_NEU = "#454a56", C_UP = "#d23a3a", C_NA = "#5b5f66";
+
+const state = { group:"insurer", period:"1D", scale:"abs", showTiny:false };
+
+// ===== 유틸 =====
+const fmtPct = v => v == null ? "N/A" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "%";
+const fmtNum = (v,d=2) => v.toLocaleString("ko-KR",{minimumFractionDigits:d, maximumFractionDigits:d});
+const byOrder = order => (a,b) => {
+  const ia = order.indexOf(a), ib = order.indexOf(b);
+  return (ia<0?99:ia) - (ib<0?99:ib) || a.localeCompare(b,"ko");
+};
+
+// 유형 내 상대값: 같은 fund_type 내 z-score (n<2이면 0)
+function relScores(funds, p){
+  const g = d3.group(funds.filter(f=>f.ret[p]!=null), f=>f.fund_type), out = new Map();
+  for (const [, arr] of g){
+    const m = d3.mean(arr, f=>f.ret[p]), s = d3.deviation(arr, f=>f.ret[p]);
+    arr.forEach(f => out.set(f.fund_id, (arr.length<2 || !s) ? 0 : (f.ret[p]-m)/s));
+  }
+  return out;
+}
+
+// 유형 내 순위: 같은 fund_type 내 백분위(0~1, 1=최상위). 동률은 평균순위, n<2이면 0.5(중립)
+function rankScores(funds, p){
+  const g = d3.group(funds.filter(f=>f.ret[p]!=null), f=>f.fund_type), out = new Map();
+  for (const [, arr] of g){
+    const n = arr.length;
+    arr.forEach(f => {
+      if (n < 2) { out.set(f.fund_id, { pct:0.5, rank:1, n }); return; }
+      const below = arr.filter(x => x.ret[p] < f.ret[p]).length;
+      const ties  = arr.filter(x => x.ret[p] === f.ret[p]).length - 1;
+      const pct = (below + ties/2) / (n - 1);
+      out.set(f.fund_id, { pct, rank: n - below - ties, n }); // rank: 1 = 최상위
+    });
+  }
+  return out;
+}
+
+function colorFn(funds){
+  const p = state.period;
+  if (state.scale === "abs"){
+    const mx = ABS_MAX[p], nb = NEUTRAL_BAND[p];
+    const sc = d3.scaleLinear().domain([-mx,-nb,nb,mx]).range([C_DOWN,C_NEU,C_NEU,C_UP]).clamp(true).interpolate(d3.interpolateRgb);
+    return { get:f => f.ret[p]==null ? C_NA : sc(f.ret[p]), min:-mx, max:mx, unit:"%",
+             note:`절대 스케일 · ±${NEUTRAL_BAND[p]}% 이내 중립` };
+  }
+  if (state.scale === "rank"){
+    const r = rankScores(funds,p);
+    const sc = d3.scaleLinear().domain([0,0.4,0.6,1]).range([C_DOWN,C_NEU,C_NEU,C_UP]).clamp(true);
+    return { get:f => f.ret[p]==null ? C_NA : sc(r.get(f.fund_id).pct), r, kind:"rank",
+             note:"유형 내 백분위 · 40~60% 중립 · 같은 유형 1개뿐이면 중립" };
+  }
+  const z = relScores(funds,p);
+  const sc = d3.scaleLinear().domain([-2,-0.25,0.25,2]).range([C_DOWN,C_NEU,C_NEU,C_UP]).clamp(true);
+  return { get:f => f.ret[p]==null ? C_NA : sc(z.get(f.fund_id)), min:-2, max:2, unit:"σ", z,
+           note:"유형 내 표준화(z) · 같은 유형 1개뿐이면 중립" };
+}
+
+// ===== 렌더 =====
+const mapEl = document.getElementById("map"), tip = document.getElementById("tip");
+
+function render(){
+  const funds = LATEST.funds.filter(f => state.showTiny || f.net_assets_100m >= TINY_THRESHOLD);
+  const W = mapEl.clientWidth, H = mapEl.clientHeight;
+  const k1 = state.group==="insurer" ? f=>f.insurer_name : f=>f.fund_type;
+  const k2 = f => f.region;
+  const o1 = state.group==="insurer" ? (a,b)=>a.localeCompare(b,"ko") : byOrder(TYPE_ORDER);
+
+  const nested = d3.groups(funds, k1, k2);
+  const root = d3.hierarchy({ name:"root", children: nested.map(([n1,g2]) => ({
+      name:n1, lvl:1, children: g2.map(([n2,arr]) => ({ name:n2, lvl:2, children: arr.map(f=>({fund:f})) }))
+    }))})
+    .sum(d => d.fund ? d.fund.net_assets_100m : 0)
+    .sort((a,b) => (a.depth===1 ? o1(a.data.name,b.data.name) : 0) || b.value - a.value);
+
+  d3.treemap().size([W,H]).tile(d3.treemapSquarify.ratio(1.2))
+    .paddingOuter(d => d.depth===0 ? 0 : 2).paddingInner(2)
+    .paddingTop(d => d.depth===1 ? 20 : d.depth===2 ? 18 : 0).round(true)(root);
+
+  const color = colorFn(funds);
+  const frag = document.createDocumentFragment();
+
+  root.descendants().forEach(n => {
+    if (n.depth===1 || n.depth===2){
+      const g = document.createElement("div");
+      g.className = "grp l" + n.depth;
+      Object.assign(g.style,{ left:n.x0+"px", top:n.y0+"px", width:(n.x1-n.x0)+"px", height:(n.y1-n.y0)+"px" });
+      const hd = document.createElement("div"); hd.className="hd";
+      const tot = fmtNum(n.value,0);
+      hd.textContent = n.depth===1 ? `${n.data.name} · ${tot}억` : n.data.name;
+      g.appendChild(hd); frag.appendChild(g);
+    }
+  });
+
+  root.leaves().forEach(n => {
+    const f = n.data.fund, w = n.x1-n.x0, h = n.y1-n.y0;
+    const t = document.createElement("div");
+    t.className = "tile";
+    Object.assign(t.style,{ left:n.x0+"px", top:n.y0+"px", width:w+"px", height:h+"px", background:color.get(f) });
+    const area = Math.sqrt(w*h), fs = Math.max(9, Math.min(22, area/9));
+    const v = f.ret[state.period];
+    if (w > 34 && h > 22){
+      t.innerHTML = (h > 38 ? `<div class="nm" style="font-size:${fs*0.75}px">${f.fund_name}</div>` : "")
+        + `<div class="rt" style="font-size:${fs}px">${v==null ? "N/A" : fmtPct(v)}</div>`;
+    }
+    t.addEventListener("mousemove", e => showTip(e, f, color));
+    t.addEventListener("mouseleave", () => tip.style.display="none");
+    frag.appendChild(t);
+  });
+
+  mapEl.replaceChildren(frag);
+  if (!funds.length) mapEl.innerHTML = `<div class="p-6 text-gray-400">표시할 펀드가 없습니다.</div>`;
+
+  // 범례
+  document.getElementById("lgBar").style.background =
+    `linear-gradient(90deg, ${C_DOWN}, ${C_NEU} 45%, ${C_NEU} 55%, ${C_UP})`;
+  document.getElementById("lgMin").textContent = color.kind==="rank" ? "유형 내 하위"
+    : (color.unit==="%" ? "−"+Math.abs(color.min)+"%" : "−2σ") + " 하락";
+  document.getElementById("lgMax").textContent = color.kind==="rank" ? "유형 내 상위"
+    : "상승 +" + color.max + color.unit;
+  document.getElementById("lgNote").textContent = color.note;
+  document.getElementById("periodNote").textContent =
+    `${state.period}: ${PERIOD_LABEL[state.period]} 수익률 (연환산 아님) · 표시 ${funds.length}개 펀드`;
+}
+
+function showTip(e, f, color){
+  const rows = ["1D","1M","1Y"].map(p =>
+    `<tr class="${p===state.period?'sel':''}"><td>${p} <span class="text-gray-500">${PERIOD_LABEL[p]}</span></td>
+     <td style="color:${f.ret[p]>0?'#ff7b7b':f.ret[p]<0?'#7fa6ff':'#ccc'}">${fmtPct(f.ret[p])}</td></tr>`).join("");
+  const zRow = state.scale==="rel"
+    ? `<tr><td class="text-gray-400">유형 내 z (${state.period})</td><td>${(color.z.get(f.fund_id)??0).toFixed(2)}σ</td></tr>`
+    : state.scale==="rank" && color.r.get(f.fund_id)
+    ? (r => `<tr><td class="text-gray-400">유형 내 순위 (${state.period})</td><td>${r.rank}/${r.n}위 · 백분위 ${(r.pct*100).toFixed(0)}%${r.n<3?' <span class="text-yellow-500">(표본 적음)</span>':''}</td></tr>`)(color.r.get(f.fund_id))
+    : "";
+  tip.innerHTML = `
+    <div class="text-[11px] text-gray-400">${f.insurer_name} · ${f.fund_id}</div>
+    <div class="text-sm font-bold text-white mb-1">${f.fund_name}</div>
+    <div class="text-[11px] text-gray-400 mb-2">${f.fund_type} · ${f.region} · ${f.manager}</div>
+    <table>
+      <tr><td class="text-gray-400">기준가</td><td>${fmtNum(f.nav)}원</td></tr>
+      <tr><td class="text-gray-400">순자산</td><td>${fmtNum(f.net_assets_100m,0)}억 원</td></tr>
+      <tr><td class="text-gray-400">총보수(연)</td><td>${f.total_fee_pct.toFixed(2)}%</td></tr>
+      <tr><td colspan="2" style="height:6px"></td></tr>
+      ${rows}${zRow}
+    </table>
+    <div class="text-[10px] text-gray-500 mt-2">기준일 ${baseDateText()} · 기준가 기준 수익률${IS_MOCK ? "(MOCK)" : ""}</div>`;
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + tw > innerWidth - 8) x = e.clientX - tw - 14;
+  if (y + th > innerHeight - 8) y = e.clientY - th - 14;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+
+const baseDateText = () => LATEST.base_date ?? "확인 필요(샘플에 기준일 없음)";
+let IS_MOCK = true;
+
+// ===== 컨트롤 =====
+function bindSeg(id, key){
+  document.querySelectorAll(`#${id} button`).forEach(b => b.addEventListener("click", () => {
+    state[key] = b.dataset.v;
+    document.querySelectorAll(`#${id} button`).forEach(x => x.setAttribute("aria-pressed", x===b));
+    render();
+  }));
+}
+bindSeg("segGroup","group"); bindSeg("segPeriod","period"); bindSeg("segScale","scale");
+document.getElementById("showTiny").addEventListener("change", e => { state.showTiny = e.target.checked; render(); });
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
+// 배치가 만든 /data/latest.json 우선 로드 → 실패 시(아티팩트 미리보기 등) 내장 MOCK
+async function boot(){
+  try {
+    const r = await fetch("data/latest.json", { cache:"no-cache" });
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    if (!Array.isArray(j.funds) || !j.funds.length) throw 0;
+    LATEST = j; IS_MOCK = false;
+    const lag = (Date.now() - new Date(j.base_date + "T00:00:00+09:00")) / 864e5;
+    if (lag > 5) document.getElementById("baseDate").insertAdjacentHTML("afterend",
+      ` <span class="text-yellow-500">(갱신 지연: 최근 ${Math.floor(lag)}일간 신규 기준가 없음)</span>`);
+    document.getElementById("mockBadge").remove();
+    document.getElementById("mockNote").remove();
+  } catch (_) { /* MOCK 유지 */ }
+  document.getElementById("baseDate").textContent = baseDateText();
+  render();
+}
+boot();
+</script>
+</body>
+</html>

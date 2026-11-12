@@ -1,0 +1,44 @@
+# 수동 진단: 공시실 펀드현황 1페이지만 조회해 표 구조를 확인 (데이터 커밋 없음)
+# Actions → probe → Run workflow → 결과는 실행 화면의 Summary 와 Artifacts(probe-html)
+name: probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "기준일 (YYYY-MM-DD, 비우면 직전 영업일)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KLIA_CONFIG: scripts/klia_request.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas requests lxml
+      - name: 진단 실행
+        run: |
+          set -o pipefail
+          ARGS="--probe"
+          if [ -n "${{ inputs.date }}" ]; then ARGS="$ARGS --date ${{ inputs.date }}"; fi
+          {
+            echo '## 공시실 진단 결과'
+            echo '아래 전체를 복사해 Claude 에게 전달'
+            echo '```'
+            python scripts/scrape_klia.py $ARGS 2>&1 | head -c 60000 || echo "[실패] 종료코드 $?"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-html
+          path: data/raw/probe_*.html
+          if-no-files-found: warn

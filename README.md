@@ -25,13 +25,15 @@ scripts/build_latest.py        원본 → latest.json 변환 (수익률·순위�
    - 1~2분 후 `https://<아이디>.github.io/va-heatmap/` 에서 열림 (이 단계에선 MOCK 화면)
 5. **배치 쓰기 권한** — `Settings → Actions → General → Workflow permissions` → `Read and write permissions` → `Save`
 
-## 2. 실데이터 스위치·이력 적재
+## 2. 실데이터 스위치·수집 방식
 
-- 스위치: `config/live.json` 의 `"live_data": true` (또는 저장소 변수 `LIVE_DATA=true`)
-  - 2026-11-12 켬 (협회 이용약관·사내 준법 확인 완료)
-- 이력 적재: `config/live.json` 의 `backfill.start / end` 를 바꿔 커밋하면 그 구간을 1회 적재
-  - 하루치 = 공시실 요청 1회(전체 펀드). 1년치 약 260회
-- 이후 자동: 평일(화~토) 오전 10:37(KST)에 전 영업일 기준가 반영
+- 스위치: `config/live.json` 의 `"live_data": true` (또는 저장소 변수 `LIVE_DATA=true`). 2026-11-12 켬
+- 수집 방식(기준시점 조회): 매 배치마다 **기준일 + 기간 시작일(1D·1W·1M·3M·6M·YTD)** 기준가만 조회
+  - 시작일이 휴장이면 직전 영업일 기준가 사용, 이미 저장된 날짜는 다시 조회하지 않음 → 평소 하루 5~7회 요청
+  - 1Y·3Y·5Y는 공시실 수익률을 그대로 사용(조회 불필요)
+  - 14개월 지난 원본 월 파일은 자동 삭제
+- 자동 실행: 평일(화~토) 오전 10:37(KST)에 전 영업일 기준. `config/live.json` 을 바꿔 커밋해도 1회 실행
+- 구간 이력 적재(선택): `backfill.start / end` 를 채워 커밋 (월 단위 커밋, `--skip-existing` 으로 재개)
 - 끄기: `"live_data": false` 로 커밋 (이미 올라간 데이터는 공개 유지)
 
 ## 3. 수동 실행 (개인 PC)
@@ -39,7 +41,7 @@ scripts/build_latest.py        원본 → latest.json 변환 (수익률·순위�
 ```bash
 pip install pandas openpyxl requests lxml
 python scripts/scrape_klia.py --probe --date 2026-11-11   # 공시실 화면 구조 진단
-python scripts/scrape_klia.py --date 2026-11-11           # 1일치 수집 → data/raw/
+python scripts/scrape_klia.py --anchors                   # 기준일+기간 시작일 수집 → data/raw/
 python scripts/build_latest.py data/raw -o data/latest.json
 python -m http.server 8000                                # 브라우저에서 http://localhost:8000
 ```

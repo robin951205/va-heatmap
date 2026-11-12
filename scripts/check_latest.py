@@ -22,7 +22,7 @@ show("fund_type (소유형 매핑 결과)", Counter(f["fund_type"] for f in F))
 show("region (대유형 매핑 결과)", Counter(str(f["region"]) for f in F))
 
 print("\n[수익률 값 있음 / 음수 개수]")
-for p in ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y"]:
+for p in ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"]:
     v = [f["ret"][p] for f in F if f["ret"][p] is not None]
     print(f"  {p:>3}: {len(v):>5}개 · 음수 {sum(x < 0 for x in v):>4}개" + (f" · 범위 {min(v):.2f} ~ {max(v):.2f}" if v else ""))
 

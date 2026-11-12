@@ -59,6 +59,7 @@
       <button data-v="YTD" aria-pressed="false">YTD</button>
       <button data-v="1Y" aria-pressed="false">1Y</button>
       <button data-v="3Y" aria-pressed="false">3Y</button>
+      <button data-v="5Y" aria-pressed="false">5Y</button>
     </div>
     <div class="seg" id="segScale" role="group" aria-label="색상 스케일">
       <button data-v="abs" aria-pressed="true">절대</button>
@@ -115,11 +116,11 @@ let LATEST = {
 // ===== 설정 =====
 const TYPE_ORDER = ["주식형","주식혼합형","채권혼합형","채권형","MMF","기타"];
 const REGION_ORDER = ["국내","해외","글로벌혼합"];
-const ABS_MAX = { "1D":2, "1W":4, "1M":5, "3M":10, "6M":15, "YTD":20, "1Y":25, "3Y":50 };      // 절대 스케일 포화점(±%)
-const NEUTRAL_BAND = { "1D":0.05, "1W":0.1, "1M":0.2, "3M":0.4, "6M":0.6, "YTD":0.8, "1Y":1, "3Y":2 }; // 0% 부근 중립 구간(±%)
+const ABS_MAX = { "1D":2, "1W":4, "1M":5, "3M":10, "6M":15, "YTD":20, "1Y":25, "3Y":50, "5Y":80 };      // 절대 스케일 포화점(±%)
+const NEUTRAL_BAND = { "1D":0.05, "1W":0.1, "1M":0.2, "3M":0.4, "6M":0.6, "YTD":0.8, "1Y":1, "3Y":2, "5Y":3 }; // 0% 부근 중립 구간(±%)
 const TINY_THRESHOLD = 10;                          // 억 원
 const PERIOD_LABEL = { "1D":"전영업일 대비", "1W":"1주 누적", "1M":"1개월 누적", "3M":"3개월 누적", "6M":"6개월 누적",
-                       "YTD":"연초 이후 누적", "1Y":"1년 누적", "3Y":"3년 누적(연환산 아님)" };
+                       "YTD":"연초 이후 누적", "1Y":"1년 누적", "3Y":"3년 누적(연환산 아님)", "5Y":"5년 누적(연환산 아님)" };
 // 국내식: 상승=빨강, 하락=파랑, 0 부근 회색
 const C_DOWN = "#2f5fc4", C_NEU = "#454a56", C_UP = "#d23a3a", C_NA = "#5b5f66";
 

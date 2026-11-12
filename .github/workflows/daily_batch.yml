@@ -1,6 +1,7 @@
 # 평일 1회: 공시실 수집 → data/latest.json 생성 → 커밋 → GitHub Pages 자동 반영
 # 스위치: config/live.json 의 live_data=true (또는 저장소 변수 LIVE_DATA=true) 일 때만 실행
-# 이력 적재: config/live.json 의 backfill.start/end 를 바꿔 커밋하면 그 구간을 1회 적재
+# 기본: 기준시점 조회(기준일+기간 시작일만). 1Y·3Y·5Y는 공시 수익률 사용
+# 구간 이력 적재(선택): config/live.json 의 backfill.start/end 를 채워 커밋하면 그 구간을 1회 적재
 name: daily-nav-batch
 
 on:
@@ -22,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nav-batch-v2
+  group: nav-batch-v3
   cancel-in-progress: false
 
 jobs:
@@ -71,7 +72,7 @@ jobs:
           git config user.name "nav-batch"
           git config user.email "nav-batch@users.noreply.github.com"
           save() {
-            git add data/raw
+            git add -A data/raw
             git diff --cached --quiet && return 0
             git commit -qm "data: 이력 적재 $1"
             git pull -q --rebase origin main && git push -q
@@ -92,7 +93,8 @@ jobs:
               save "$cs~$ce"
             done < /tmp/chunks.txt
           else
-            python scripts/scrape_klia.py
+            # 일 배치: 기준일 + 기간 시작일(1D·1W·1M·3M·6M·YTD) 기준가만 조회, 14개월 지난 원본 정리
+            python scripts/scrape_klia.py --anchors --prune-months 14
           fi
 
       - name: latest.json 생성·점검
@@ -106,7 +108,7 @@ jobs:
         run: |
           git config user.name "nav-batch"
           git config user.email "nav-batch@users.noreply.github.com"
-          git add data
+          git add -A data
           git diff --cached --quiet && echo "변경 없음" && exit 0
           git commit -m "data: 기준가 배치 $(TZ=Asia/Seoul date +%F) [${{ github.event_name }}]"
           git pull --rebase origin main

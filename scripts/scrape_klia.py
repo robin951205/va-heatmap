@@ -2,6 +2,7 @@
 """
 생명보험협회 공시실 > 상품비교공시 > 변액보험 > 펀드현황(일별) 수집기
 
+  python scrape_klia.py --anchors                # [일 배치 기본] 기준일 + 각 기간 시작일(1D·1W·1M·3M·6M·YTD) 기준가만 조회
   python scrape_klia.py --probe                  # [먼저 실행] 1페이지만 받아 표 구조 진단 + HTML 저장
   python scrape_klia.py                          # 직전 영업일 1일치 수집(전 페이지)
   python scrape_klia.py --date 2026-11-11        # 특정 기준일
@@ -205,6 +206,64 @@ def probe(sess, c, d: date):
         print("→ 표가 없음: 결과가 자바스크립트로 따로 불려오는 구조일 수 있음. probe HTML 파일을 공유해 주세요.")
 
 # ───────────────────────── 메인 ─────────────────────────
+# ───────────────────────── 기준시점(앵커) 조회 ─────────────────────────
+# 수익률 = 기준일 기준가 / 기간 시작일 기준가 − 1 → 시작일 기준가만 있으면 됨.
+# 1Y·3Y·5Y는 공시실이 수익률을 직접 제공하므로 조회하지 않음.
+ANCHOR_BACK_DAYS = 10       # 시작일이 휴장이면 직전 영업일로 최대 10일까지 거슬러 올라감
+
+def today_kst() -> date:
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    return datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+def anchor_dates(base: date) -> dict:
+    ts = pd.Timestamp(base)
+    return {
+        "1D":  base - timedelta(days=1),
+        "1W":  base - timedelta(days=7),
+        "1M":  (ts - pd.DateOffset(months=1)).date(),
+        "3M":  (ts - pd.DateOffset(months=3)).date(),
+        "6M":  (ts - pd.DateOffset(months=6)).date(),
+        "YTD": date(base.year - 1, 12, 31),
+    }
+
+def find_available(sess, c, d: date, have: set, label: str):
+    """d 또는 그 직전 영업일 중 공시 기준가가 있는 날을 찾아 저장. 반환: 실제 사용 일자(없으면 None)"""
+    for k in range(ANCHOR_BACK_DAYS + 1):
+        day = d - timedelta(days=k)
+        if day.weekday() >= 5: continue
+        if day.isoformat() in have:
+            print(f"  {label:<4} {day} (저장분 사용)"); return day
+        print(f"  {label:<4} {day} 조회", flush=True)
+        try:
+            df = fetch_day(sess, c, day)
+        except DayFailed as e:
+            print(f"    [실패] {e}"); return None
+        time.sleep(SLEEP_SEC)
+        if df.empty: print("    → 공시 없음(휴장/미확정), 직전 영업일 시도"); continue
+        path, n = append(df, c, day); have.add(day.isoformat())
+        print(f"    → 저장 {path} ({len(df)}행)"); return day
+    print(f"  [경고] {label}: {d} 이전 {ANCHOR_BACK_DAYS}일 내 공시 없음"); return None
+
+def run_anchors(sess, c, target: date):
+    have = existing_dates(c)
+    print(f"[기준시점 조회] 목표 기준일 {target}")
+    base = find_available(sess, c, target, have, "기준일")
+    if base is None: sys.exit("[중단] 기준일 기준가를 찾지 못함")
+    used = {"기준일": base}
+    for p, d in anchor_dates(base).items():
+        used[p] = find_available(sess, c, d, have, p)
+    print("사용 일자: " + ", ".join(f"{k}={v}" for k, v in used.items()))
+    miss = [k for k, v in used.items() if v is None]
+    if miss: print(f"[경고] 시작일 기준가 없음 → 해당 기간 N/A: {miss}")
+
+def prune(months: int):
+    cutoff = (pd.Timestamp(today_kst()) - pd.DateOffset(months=months)).strftime("%Y-%m")
+    for f in sorted(glob.glob(os.path.join(RAW_DIR, "nav_*.csv.gz"))):
+        ym = os.path.basename(f)[4:11]
+        if ym < cutoff:
+            os.remove(f); print(f"  정리: {f} ({months}개월 초과)")
+
 def prev_business_day(d: date) -> date:
     d -= timedelta(days=1)
     while d.weekday() >= 5: d -= timedelta(days=1)
@@ -248,13 +307,19 @@ def main():
     ap.add_argument("--date"); ap.add_argument("--backfill", nargs=2, metavar=("START", "END"))
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--skip-existing", action="store_true", help="이미 저장된 기준일은 건너뜀(백필 재개용)")
+    ap.add_argument("--anchors", action="store_true", help="기준일과 기간 시작일 기준가만 조회")
+    ap.add_argument("--prune-months", type=int, default=0, help="N개월보다 오래된 원본 월 파일 삭제(0=안 함)")
     a = ap.parse_args()
     c = load_config()
     sess = requests.Session()
     sess.headers["User-Agent"] = c.get("user_agent", "Mozilla/5.0")
 
-    target = date.fromisoformat(a.date) if a.date else prev_business_day(date.today())
+    target = date.fromisoformat(a.date) if a.date else prev_business_day(today_kst())
     if a.probe: return probe(sess, c, target)
+    if a.anchors:
+        run_anchors(sess, c, target)
+        if a.prune_months: prune(a.prune_months)
+        return
 
     days = (list(business_days(date.fromisoformat(a.backfill[0]), date.fromisoformat(a.backfill[1])))
             if a.backfill else [target])

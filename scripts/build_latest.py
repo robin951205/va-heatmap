@@ -45,6 +45,7 @@ COLUMN_ALIASES = {
     "ret_YTD": ["연초이후", "YTD", "연초대비"],
     "ret_1Y": ["수익률(%)_1년", "1년", "1년수익률"],
     "ret_3Y": ["수익률(%)_3년", "3년", "3년수익률", "3년누적"],
+    "ret_5Y": ["수익률(%)_5년", "5년", "5년수익률"],
 }
 # 금액 컬럼의 엑셀 단위 → 억 원 환산 계수 (확인 필요: 원/백만원/억원 중 무엇인지)
 AMOUNT_TO_100M = {"원": 1e-8, "천원": 1e-5, "백만원": 1e-2, "억원": 1.0}
@@ -66,7 +67,7 @@ FUND_TYPE_RULES = [
 # 공시실 대유형: 국내투자 / 해외투자 / 국내외투자 (2026-11-12 확인). "국내외"를 "국내"보다 먼저 판정
 REGION_RULES = [("국내외", "글로벌혼합"), ("글로벌", "글로벌혼합"), ("혼합", "글로벌혼합"), ("해외", "해외"), ("국내", "국내")]
 
-PERIODS = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y"]
+PERIODS = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y"]
 RANK_PERIODS = ["1M", "1Y"]          # data_schema.md rank_in_type 정의
 SOURCE = "생명보험협회 공시실"
 
@@ -126,7 +127,8 @@ def r2(x):
 # ───────────────────────── 4. 수익률 계산 (이력형) ─────────────────────────
 def period_start(base: pd.Timestamp, p: str) -> pd.Timestamp | None:
     off = {"1W": pd.DateOffset(weeks=1), "1M": pd.DateOffset(months=1), "3M": pd.DateOffset(months=3),
-           "6M": pd.DateOffset(months=6), "1Y": pd.DateOffset(years=1), "3Y": pd.DateOffset(years=3)}
+           "6M": pd.DateOffset(months=6), "1Y": pd.DateOffset(years=1), "3Y": pd.DateOffset(years=3),
+           "5Y": pd.DateOffset(years=5)}
     if p == "YTD": return pd.Timestamp(base.year - 1, 12, 31)   # 전년 말 기준가 대비
     return base - off[p] if p in off else None
 

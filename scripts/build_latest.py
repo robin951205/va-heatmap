@@ -63,7 +63,8 @@ FUND_TYPE_RULES = [
     # 공시실 소유형 중 스키마 enum 밖의 값 → '기타' (원문 구분 유지 여부는 스키마 제안 대상)
     ("기타", "기타"), ("부동산", "기타"), ("커머더티", "기타"), ("원자재", "기타"),
 ]
-REGION_RULES = [("글로벌", "글로벌혼합"), ("혼합", "글로벌혼합"), ("해외", "해외"), ("국내", "국내")]
+# 공시실 대유형: 국내투자 / 해외투자 / 국내외투자 (2026-11-12 확인). "국내외"를 "국내"보다 먼저 판정
+REGION_RULES = [("국내외", "글로벌혼합"), ("글로벌", "글로벌혼합"), ("혼합", "글로벌혼합"), ("해외", "해외"), ("국내", "국내")]
 
 PERIODS = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y"]
 RANK_PERIODS = ["1M", "1Y"]          # data_schema.md rank_in_type 정의
@@ -184,11 +185,18 @@ def build(df, m, warnings):
     d["fund_id"] = d.insurer_code + "_" + d.fund_code
 
     # 키 안정성 점검: 같은 펀드(보험사명·펀드명·설정일)에 fund_id가 여러 개면 코드가 날짜별로 바뀐다는 뜻
+    # (같은 날 같은 이름·설정일로 코드가 여럿이면 서로 다른 펀드이므로 제외하고, 하루 1코드인 펀드만 날짜 간 비교)
     ident = d.insurer_name.astype(str) + "|" + d.fund_name.astype(str) + "|" + \
             (d["inception_date"].astype(str) if "inception_date" in d else "")
-    multi = d.assign(_k=ident).groupby("_k").fund_id.nunique()
-    if (multi > 1).any():
-        warnings.append(f"fund_id 불안정: 펀드 {int((multi > 1).sum())}개가 날짜별로 다른 코드 → 키 규칙 재검토 필요")
+    t = d.assign(_k=ident)
+    same_day = t.groupby(["_k", "base_date"]).fund_id.nunique().groupby(level=0).max()
+    across = t.groupby("_k").fund_id.nunique()
+    unstable = across[(same_day == 1) & (across > 1)]
+    if len(unstable):
+        warnings.append(f"fund_id 불안정: 펀드 {len(unstable)}개가 날짜별로 다른 코드 → 키 규칙 재검토 필요")
+    namesakes = int((same_day > 1).sum())
+    if namesakes:
+        print(f"참고: 보험사·펀드명·설정일이 같은 별개 펀드 {namesakes}그룹 (펀드코드로 구분됨)")
 
     if "base_date" not in d or d.base_date.isna().all():
         sys.exit("[중단] 기준일 컬럼이 없거나 비어 있음 → 기준일 없이 latest.json 생성 불가")

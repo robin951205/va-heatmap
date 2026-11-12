@@ -209,7 +209,7 @@ def append(rows: pd.DataFrame, c, d: date):
     """기준일 d 의 수집분을 해당 월 파일에 병합 저장. 반환: 그 월 파일의 총 행수."""
     os.makedirs(RAW_DIR, exist_ok=True)
     path = os.path.join(RAW_DIR, f"nav_{d:%Y-%m}.csv.gz")
-    rows = rows.fillna("").astype(str)
+    rows = rows.apply(lambda col: col.map(lambda v: "" if pd.isna(v) else str(v)))   # NaN → 빈칸(경고 없이)
     if os.path.exists(path):
         rows = pd.concat([pd.read_csv(path, dtype=str, keep_default_na=False), rows], ignore_index=True)
     rows = dedupe(rows, c)

@@ -52,8 +52,13 @@
     </div>
     <div class="seg" id="segPeriod" role="group" aria-label="기간">
       <button data-v="1D" aria-pressed="true">1D</button>
+      <button data-v="1W" aria-pressed="false">1W</button>
       <button data-v="1M" aria-pressed="false">1M</button>
+      <button data-v="3M" aria-pressed="false">3M</button>
+      <button data-v="6M" aria-pressed="false">6M</button>
+      <button data-v="YTD" aria-pressed="false">YTD</button>
       <button data-v="1Y" aria-pressed="false">1Y</button>
+      <button data-v="3Y" aria-pressed="false">3Y</button>
     </div>
     <div class="seg" id="segScale" role="group" aria-label="색상 스케일">
       <button data-v="abs" aria-pressed="true">절대</button>
@@ -110,10 +115,11 @@ let LATEST = {
 // ===== 설정 =====
 const TYPE_ORDER = ["주식형","주식혼합형","채권혼합형","채권형","MMF","기타"];
 const REGION_ORDER = ["국내","해외","글로벌혼합"];
-const ABS_MAX = { "1D":2, "1M":5, "1Y":25 };      // 절대 스케일 포화점(±%)
-const NEUTRAL_BAND = { "1D":0.05, "1M":0.2, "1Y":1 }; // 0% 부근 중립 구간(±%)
+const ABS_MAX = { "1D":2, "1W":4, "1M":5, "3M":10, "6M":15, "YTD":20, "1Y":25, "3Y":50 };      // 절대 스케일 포화점(±%)
+const NEUTRAL_BAND = { "1D":0.05, "1W":0.1, "1M":0.2, "3M":0.4, "6M":0.6, "YTD":0.8, "1Y":1, "3Y":2 }; // 0% 부근 중립 구간(±%)
 const TINY_THRESHOLD = 10;                          // 억 원
-const PERIOD_LABEL = { "1D":"전영업일 대비", "1M":"1개월 누적", "1Y":"1년 누적" };
+const PERIOD_LABEL = { "1D":"전영업일 대비", "1W":"1주 누적", "1M":"1개월 누적", "3M":"3개월 누적", "6M":"6개월 누적",
+                       "YTD":"연초 이후 누적", "1Y":"1년 누적", "3Y":"3년 누적(연환산 아님)" };
 // 국내식: 상승=빨강, 하락=파랑, 0 부근 회색
 const C_DOWN = "#2f5fc4", C_NEU = "#454a56", C_UP = "#d23a3a", C_NA = "#5b5f66";
 
@@ -241,7 +247,7 @@ function render(){
 }
 
 function showTip(e, f, color){
-  const rows = ["1D","1M","1Y"].map(p =>
+  const rows = Object.keys(PERIOD_LABEL).map(p =>
     `<tr class="${p===state.period?'sel':''}"><td>${p} <span class="text-gray-500">${PERIOD_LABEL[p]}</span></td>
      <td style="color:${f.ret[p]>0?'#ff7b7b':f.ret[p]<0?'#7fa6ff':'#ccc'}">${fmtPct(f.ret[p])}</td></tr>`).join("");
   const zRow = state.scale==="rel"
@@ -298,6 +304,16 @@ async function boot(){
     document.getElementById("mockNote").remove();
   } catch (_) { /* MOCK 유지 */ }
   document.getElementById("baseDate").textContent = baseDateText();
+  // 이력 누적 전에는 1D 등이 비어 있음 → 값이 있는 첫 기간으로 시작
+  const has = p => LATEST.funds.some(f => f.ret && f.ret[p] != null);
+  if (!has(state.period)) {
+    const p = Object.keys(PERIOD_LABEL).find(has);
+    if (p) { state.period = p;
+      document.querySelectorAll("#segPeriod button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === p)); }
+  }
+  document.querySelectorAll("#segPeriod button").forEach(b => {
+    if (!has(b.dataset.v)) { b.style.opacity = .4; b.title = "기준가 이력 누적 전: 데이터 없음"; }
+  });
   render();
 }
 boot();

@@ -33,7 +33,7 @@ jobs:
       KLIA_CONFIG: scripts/klia_request.json
       KLIA_RAW_DIR: data/raw
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 스위치·백필 구간 확인
         id: cfg
@@ -56,14 +56,14 @@ jobs:
           IN_S: ${{ inputs.backfill_start }}
           IN_E: ${{ inputs.backfill_end }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: steps.cfg.outputs.live == 'true'
         with:
           python-version: "3.12"
           cache: pip
 
       - if: steps.cfg.outputs.live == 'true'
-        run: pip install pandas openpyxl requests lxml
+        run: pip install -r requirements.txt
 
       - name: 공시실 수집
         if: steps.cfg.outputs.live == 'true'

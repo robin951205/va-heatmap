@@ -25,18 +25,14 @@ scripts/build_latest.py        원본 → latest.json 변환 (수익률·순위�
    - 1~2분 후 `https://<아이디>.github.io/va-heatmap/` 에서 열림 (이 단계에선 MOCK 화면)
 5. **배치 쓰기 권한** — `Settings → Actions → General → Workflow permissions` → `Read and write permissions` → `Save`
 
-## 2. 실데이터 켜기 (아래 확인 후)
+## 2. 실데이터 스위치·이력 적재
 
-> 켜기 전 확인: ① `--probe` 진단 결과로 컬럼 매핑 완료 ② 협회 이용약관·자동수집/재게시 허용 여부 ③ 사내 준법 검토(외부 공개 시)
-
-1. `Settings → Secrets and variables → Actions → Variables` 탭 → `New repository variable`
-   - Name: `LIVE_DATA` · Value: `true`
-2. **과거 이력 적재(1회)** — `Actions → daily-nav-batch → Run workflow`
-   - backfill_start / backfill_end 에 **6개월씩** 나눠 입력 (1회 실행 최대 약 5.5시간)
-   - 3Y 수익률까지 쓰려면 3년 + 여유분 → 7번 정도 나눠 실행
-3. 이후는 자동: 평일 오전 10:37(KST)에 전 영업일 기준가 반영
-
-**끄기**: 변수 `LIVE_DATA` 를 `false` 로 바꾸면 수집 중단 (이미 올라간 데이터는 그대로 공개 유지)
+- 스위치: `config/live.json` 의 `"live_data": true` (또는 저장소 변수 `LIVE_DATA=true`)
+  - 2026-11-12 켬 (협회 이용약관·사내 준법 확인 완료)
+- 이력 적재: `config/live.json` 의 `backfill.start / end` 를 바꿔 커밋하면 그 구간을 1회 적재
+  - 하루치 = 공시실 요청 1회(전체 펀드). 1년치 약 260회
+- 이후 자동: 평일(화~토) 오전 10:37(KST)에 전 영업일 기준가 반영
+- 끄기: `"live_data": false` 로 커밋 (이미 올라간 데이터는 공개 유지)
 
 ## 3. 수동 실행 (개인 PC)
 

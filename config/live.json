@@ -1,0 +1,9 @@
+{
+  "_설명": "live_data=true 일 때만 실데이터 수집·공개. backfill 의 start/end 를 바꿔 커밋하면 그 구간 이력 적재가 1회 실행됨",
+  "live_data": true,
+  "backfill": {
+    "start": "2025-11-03",
+    "end": "2026-11-11",
+    "requested_at": "2026-11-12T23:25+09:00"
+  }
+}

@@ -1,17 +1,21 @@
 # 평일 1회: 공시실 수집 → data/latest.json 생성 → 커밋 → GitHub Pages 자동 반영
-# 안전장치: 저장소 변수 LIVE_DATA 가 'true' 일 때만 실데이터 수집·공개 (그 전엔 화면이 MOCK 으로 표시됨)
+# 스위치: config/live.json 의 live_data=true (또는 저장소 변수 LIVE_DATA=true) 일 때만 실행
+# 이력 적재: config/live.json 의 backfill.start/end 를 바꿔 커밋하면 그 구간을 1회 적재
 name: daily-nav-batch
 
 on:
   schedule:
     - cron: "37 1 * * 2-6"        # KST 화~토 10:37 → 전 영업일 기준가 (공시 갱신 시각 확인 필요)
+  push:
+    branches: [main]
+    paths: ["config/live.json"]   # 백필 요청
   workflow_dispatch:
     inputs:
       backfill_start:
         description: "과거 이력 적재 시작일 (YYYY-MM-DD, 비우면 직전 영업일 1일치)"
         required: false
       backfill_end:
-        description: "과거 이력 적재 종료일 (YYYY-MM-DD) — 1회 6개월 이내 권장"
+        description: "과거 이력 적재 종료일 (YYYY-MM-DD)"
         required: false
 
 permissions:
@@ -23,7 +27,6 @@ concurrency:
 
 jobs:
   batch:
-    if: vars.LIVE_DATA == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 330
     env:
@@ -32,30 +35,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 스위치·백필 구간 확인
+        id: cfg
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          c = json.load(open("config/live.json", encoding="utf-8"))
+          live = c.get("live_data") is True or os.environ.get("VAR_LIVE") == "true"
+          ev = os.environ["EV"]
+          s, e = os.environ.get("IN_S", ""), os.environ.get("IN_E", "")
+          if ev == "push":
+              s, e = c.get("backfill", {}).get("start", ""), c.get("backfill", {}).get("end", "")
+          print(f"live={'true' if live else 'false'}")
+          print(f"start={s}"); print(f"end={e}")
+          EOF
+          cat "$GITHUB_OUTPUT"
+        env:
+          VAR_LIVE: ${{ vars.LIVE_DATA }}
+          EV: ${{ github.event_name }}
+          IN_S: ${{ inputs.backfill_start }}
+          IN_E: ${{ inputs.backfill_end }}
+
       - uses: actions/setup-python@v5
+        if: steps.cfg.outputs.live == 'true'
         with:
           python-version: "3.12"
           cache: pip
 
-      - run: pip install pandas openpyxl requests lxml
+      - if: steps.cfg.outputs.live == 'true'
+        run: pip install pandas openpyxl requests lxml
 
       - name: 공시실 수집
+        if: steps.cfg.outputs.live == 'true'
         run: |
-          if [ -n "${{ inputs.backfill_start }}" ] && [ -n "${{ inputs.backfill_end }}" ]; then
-            python scripts/scrape_klia.py --backfill "${{ inputs.backfill_start }}" "${{ inputs.backfill_end }}"
+          if [ -n "${{ steps.cfg.outputs.start }}" ] && [ -n "${{ steps.cfg.outputs.end }}" ]; then
+            python scripts/scrape_klia.py --backfill "${{ steps.cfg.outputs.start }}" "${{ steps.cfg.outputs.end }}"
           else
             python scripts/scrape_klia.py
           fi
 
-      - name: latest.json 생성
-        run: python scripts/build_latest.py data/raw -o data/latest.json
+      - name: latest.json 생성·점검
+        if: steps.cfg.outputs.live == 'true'
+        run: |
+          python scripts/build_latest.py data/raw -o data/latest.json
+          python scripts/check_latest.py data/latest.json | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: 커밋 (Pages 자동 반영)
-        if: always()
+        if: always() && steps.cfg.outputs.live == 'true'
         run: |
           git config user.name "nav-batch"
           git config user.email "nav-batch@users.noreply.github.com"
           git add data
           git diff --cached --quiet && echo "변경 없음" && exit 0
-          git commit -m "data: 기준가 배치 $(TZ=Asia/Seoul date +%F)"
+          git commit -m "data: 기준가 배치 $(TZ=Asia/Seoul date +%F) [${{ github.event_name }}]"
+          git pull --rebase origin main
           git push

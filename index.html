@@ -279,6 +279,8 @@ footer b{color:var(--tx2);font-weight:600}
   #sheet .pop.left{position:static;width:100%;box-shadow:none;margin-top:6px}
   #sheet .ins .ls{max-height:40svh}
   #sheet .tog{padding:4px 0;font-size:13.5px}
+  #segSize::before{content:"면적";align-self:center;font-size:11.5px;color:var(--tx3);padding:0 4px 0 6px}
+  .crumb{flex-basis:100%}
   #sheet #mapOpts{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:12px}
   #sheet #mapOpts .seg button{padding:8px 4px;font-size:12.5px}
   /* 펀드 상세 하단 시트 */
@@ -390,6 +392,7 @@ footer b{color:var(--tx2);font-weight:600}
       <div class="maphead">
         <div class="mopts">
           <div class="seg sm" id="segView"><button data-v="map" aria-pressed="true">히트맵</button><button data-v="scatter" aria-pressed="false" title="가로 = 순자산(로그), 세로 = 수익률">규모×성과</button><button data-v="table" aria-pressed="false">표</button></div>
+          <span id="mSizeSlot"></span>
           <div class="crumb" id="crumb"></div>
         </div>
         <span id="phMapOpts"></span>
@@ -852,7 +855,7 @@ $("insAll").onclick=()=>setIns(null);
 $("insNone").onclick=()=>setIns([]);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(sheetOn) setSheet(false); else if(document.querySelector(".pop.on")) closePops(); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
   if(e.key==="/" && document.activeElement!==$("q")){ e.preventDefault(); $("q").focus(); } });
-let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.view==="map") renderMap(); else if(S.view==="scatter") renderScatter(); },100); });
+let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(!DATA) return; if(S.view==="map") renderMap(); else if(S.view==="scatter") renderScatter(); },100); });
 
 function renderAll(){
   const hasP = p => DATA.funds.some(f=>f.ret?.[p]!=null);
@@ -888,21 +891,21 @@ const MQ = matchMedia("(max-width:640px)");
 let sheetOn=false;
 function layoutMobile(){
   const m=MQ.matches;
-  if (m){ $("mPeriodSlot").append($("segPeriod")); $("sheetBody").append($("toolbar"), $("mapOpts")); }
-  else  { $("phPeriod").after($("segPeriod")); $("phBar").after($("toolbar")); $("phMapOpts").after($("mapOpts")); setSheet(false); }
+  if (m){ $("mPeriodSlot").append($("segPeriod")); $("sheetBody").append($("toolbar"), $("mapOpts")); $("mSizeSlot").after($("segSize")); }
+  else  { $("phPeriod").after($("segPeriod")); $("phBar").after($("toolbar")); $("phMapOpts").after($("mapOpts")); $("sizeLbl").after($("segSize")); setSheet(false); }
 }
 function setSheet(on){ sheetOn=on; $("sheet").classList.toggle("on",on); syncBackdrop(); }
 function syncBackdrop(){ $("backdrop").classList.toggle("on", MQ.matches && (sheetOn || !!S.sel)); }
 $("mFilterBtn").onclick=()=>setSheet(true);
 $("sheetClose").onclick=()=>setSheet(false);
 $("backdrop").onclick=()=>{ if(sheetOn) setSheet(false); else if(S.sel) select(S.sel); };
-MQ.addEventListener("change",()=>{ layoutMobile(); renderAll(); });
+MQ.addEventListener("change",()=>{ layoutMobile(); if(DATA) renderAll(); });
 function renderMobileBar(){
   const p=S.period, base=filtered(), [b0]=STEPS[p], vals=base.map(f=>f.ret?.[p]).filter(v=>v!=null);
   const up=vals.filter(v=>v>=b0).length, dn=vals.filter(v=>v<=-b0).length, fl=vals.length-up-dn, avg=wavg(base,p), r=ramps(), t=Math.max(vals.length,1);
   $("mSum").innerHTML=`${p} 가중평균 <b style="color:${txtColor(avg)}">${fmt(avg)}</b> · <span style="color:${r.up[3]}">▲${fmtN(up)}</span> <span style="color:${r.dn[3]}">▼${fmtN(dn)}</span> · ${fmtN(base.length)}개`;
   $("mBreadth").innerHTML=`<i style="width:${up/t*100}%;background:${r.up[2]}"></i><i style="width:${fl/t*100}%;background:${NEU}"></i><i style="width:${dn/t*100}%;background:${r.dn[2]}"></i>`;
-  const n=[S.group!=="insurer", !!S.region, !!S.insSel, S.types.length>0, S.hideSmall, !!S.q.trim(), S.scale!=="abs", S.size!==(MQ.matches?"sqrt":"assets")].filter(Boolean).length;
+  const n=[S.group!=="insurer", !!S.region, !!S.insSel, S.types.length>0, S.hideSmall, !!S.q.trim(), S.scale!=="abs"].filter(Boolean).length;
   $("mFilterCnt").textContent = n || "";
 }
 // 모바일 표 → 카드 목록

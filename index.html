@@ -175,6 +175,20 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 .pop h4{margin:0 0 6px;font-size:12px;color:var(--tx2);font-weight:600}
 .pop .seg{margin-bottom:12px;width:100%}.pop .seg button{flex:1}
 .rel{position:relative}
+.pop.left{left:0;right:auto}
+.ins{width:300px;padding:10px 0 8px}
+.ins .hd{display:flex;justify-content:space-between;align-items:center;padding:0 12px 8px;border-bottom:1px solid var(--line)}
+.ins .hd b{font-size:12.5px}
+.ins .hd span{display:flex;gap:4px}
+.ins .hd button{border:1px solid var(--line2);background:transparent;border-radius:6px;padding:2px 8px;font-size:11.5px;color:var(--tx2)}
+.ins .hd button:hover{color:var(--tx)}
+.ins .ls{max-height:min(56vh,460px);overflow:auto;padding:4px 0}
+.ins label{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:6px 12px;font-size:13px;cursor:pointer}
+.ins label:hover{background:var(--panel2)}
+.ins label input{accent-color:var(--acc);margin:0}
+.ins label small{color:var(--tx3);font-size:11.5px}
+.insbtn b{color:var(--tx);font-weight:600}
+.insbtn.on{border-color:var(--acc);color:var(--tx)}
 
 footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--tx3);line-height:1.75}
 footer b{color:var(--tx2);font-weight:600}
@@ -251,6 +265,13 @@ footer b{color:var(--tx2);font-weight:600}
     <div class="seg" id="segGroup"><button data-v="insurer" aria-pressed="true">보험사</button><button data-v="type" aria-pressed="false">펀드유형</button></div>
     <span class="lbl">지역</span>
     <div class="seg" id="segRegion"><button data-v="" aria-pressed="true">전체</button><button data-v="국내" aria-pressed="false">국내</button><button data-v="해외" aria-pressed="false">해외</button><button data-v="글로벌혼합" aria-pressed="false">글로벌혼합</button></div>
+    <div class="rel">
+      <button class="iconbtn insbtn" id="insBtn" aria-haspopup="true" aria-expanded="false">보험사 <b id="insCnt">전체</b> ▾</button>
+      <div class="pop left ins" id="insPop" role="dialog" aria-label="보험사 선택">
+        <div class="hd"><b>보험사 선택</b><span><button id="insAll">전체 선택</button><button id="insNone">모두 해제</button></span></div>
+        <div class="ls" id="insList"></div>
+      </div>
+    </div>
     <div class="sp"></div>
     <label class="tog"><input type="checkbox" id="showTiny"> 순자산 10억 미만 포함</label>
     <div class="search">
@@ -317,10 +338,10 @@ const NEU = "#3a3f4a";
 
 // ═══════════════════ 상태 ═══════════════════
 const S = Object.assign({ period:"1D", group:"insurer", region:"", scale:"abs", conv:"kr", pal:"std",
-  view:"map", showTiny:false, types:[], q:"", zoom:null, sel:null, mv:"top", sortK:null, sortD:-1 }, loadPrefs());
+  view:"map", showTiny:false, insSel:null, types:[], q:"", zoom:null, sel:null, mv:"top", sortK:null, sortD:-1 }, loadPrefs());
 function loadPrefs(){ try { return JSON.parse(localStorage.getItem("vaheat.prefs")||"{}"); } catch(_) { return {}; } }
-function savePrefs(){ try { const {period,group,scale,conv,pal,view,showTiny}=S;
-  localStorage.setItem("vaheat.prefs", JSON.stringify({period,group,scale,conv,pal,view,showTiny})); } catch(_){} }
+function savePrefs(){ try { const {period,group,scale,conv,pal,view,showTiny,insSel}=S;
+  localStorage.setItem("vaheat.prefs", JSON.stringify({period,group,scale,conv,pal,view,showTiny,insSel})); } catch(_){} }
 
 let DATA = null, IS_MOCK = false, RANK = {};
 const $ = id => document.getElementById(id);
@@ -382,6 +403,7 @@ function filtered(opts={}){
   return DATA.funds.filter(f =>
     (S.showTiny || (f.net_assets_100m??0) >= TINY) &&
     (!S.region || f.region===S.region) &&
+    (opts.ignoreIns || !S.insSel || S.insSel.includes(f.insurer_name)) &&
     (opts.ignoreTypes || !S.types.length || S.types.includes(f.fund_type)) &&
     (opts.ignoreZoom || !S.zoom || zoomKey(f)===S.zoom) &&
     (!opts.applyQuery || !q || match(f,q)));
@@ -400,7 +422,7 @@ function renderKPIs(){
   const up=vals.filter(v=>v>=b0).length, dn=vals.filter(v=>v<=-b0).length, fl=vals.length-up-dn, na=base.length-vals.length;
   $("kCount").textContent = fmtN(base.length)+"개";
   $("kAssets").textContent = "순자산 합계 " + fmtAmt(d3.sum(base,f=>f.net_assets_100m||0)) + " 원";
-  $("kScope").textContent = [S.zoom, S.region, S.types.join("·")].filter(Boolean).join(" · ") || "전체";
+  $("kScope").textContent = [S.zoom, S.insSel ? `보험사 ${S.insSel.length}곳` : "", S.region, S.types.join("·")].filter(Boolean).join(" · ") || "전체";
   const r=ramps(), t=Math.max(vals.length,1);
   $("kBreadth").innerHTML = `<i style="width:${up/t*100}%;background:${r.up[2]}"></i><i style="width:${fl/t*100}%;background:${NEU}"></i><i style="width:${dn/t*100}%;background:${r.dn[2]}"></i>`;
   $("kBreadthL").innerHTML = `<span style="color:${r.up[3]}">상승 ${fmtN(up)}</span><span>보합 ${fmtN(fl)}${na?` · N/A ${fmtN(na)}`:""}</span><span style="color:${r.dn[3]}">하락 ${fmtN(dn)}</span>`;
@@ -423,7 +445,7 @@ function renderMap(){
   const el=$("map"); const W=el.clientWidth, H=el.clientHeight;
   const funds=filtered();
   const q=S.q.trim().toLowerCase();
-  if (!funds.length){ el.innerHTML='<div class="empty">조건에 맞는 펀드가 없습니다.</div>'; return; }
+  if (!funds.length){ el.innerHTML=`<div class="empty">${S.insSel&&!S.insSel.length?"보험사를 한 곳 이상 선택해 주세요.":"조건에 맞는 펀드가 없습니다."}</div>`; return; }
   const keys = S.zoom ? [k2] : [k1,k2];
   const root = d3.hierarchy(d3.group(funds,...keys), d => d instanceof Map ? [...d]
       : Array.isArray(d) && d[1] instanceof Map ? [...d[1]] : Array.isArray(d) && Array.isArray(d[1]) ? d[1] : null)
@@ -603,9 +625,22 @@ let qt; $("q").addEventListener("input",e=>{ clearTimeout(qt); qt=setTimeout(()=
 $("kTypes").addEventListener("click",e=>{ const c=e.target.closest(".tchip"); if(!c) return; const t=c.dataset.t;
   S.types = S.types.includes(t) ? S.types.filter(x=>x!==t) : [...S.types,t]; S.zoom=null; renderAll(); });
 $("typeReset").onclick=()=>{ S.types=[]; renderAll(); };
-$("setBtn").onclick=e=>{ e.stopPropagation(); const on=$("setPop").classList.toggle("on"); $("setBtn").setAttribute("aria-expanded",on); };
-document.addEventListener("click",e=>{ if(!e.target.closest(".rel")) { $("setPop").classList.remove("on"); $("setBtn").setAttribute("aria-expanded",false); } });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if($("setPop").classList.contains("on")) $("setPop").classList.remove("on"); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
+function togglePop(btn,pop){ const on=!$(pop).classList.contains("on"); closePops(); $(pop).classList.toggle("on",on); $(btn).setAttribute("aria-expanded",on); }
+function closePops(except){ [["setBtn","setPop"],["insBtn","insPop"]].forEach(([b,p])=>{ if(p===except) return; $(p).classList.remove("on"); $(b).setAttribute("aria-expanded",false); }); }
+$("setBtn").onclick=e=>{ e.stopPropagation(); togglePop("setBtn","setPop"); };
+$("insBtn").onclick=e=>{ e.stopPropagation(); togglePop("insBtn","insPop"); };
+document.addEventListener("click",e=>{ const r=e.target.closest(".rel"); closePops(r ? r.querySelector(".pop")?.id : null); });
+// 보험사 체크박스
+function setIns(sel){ const all=insurers().map(x=>x[0]);
+  S.insSel = sel && sel.length===all.length ? null : sel;               // 전부 선택 = 필터 없음
+  if (S.zoom && S.group==="insurer" && S.insSel && !S.insSel.includes(S.zoom)) S.zoom=null;
+  savePrefs(); renderAll(); }
+$("insList").addEventListener("change",e=>{ const all=insurers().map(x=>x[0]);
+  const cur = S.insSel ? [...S.insSel] : [...all], n=e.target.value;
+  setIns(e.target.checked ? [...new Set([...cur,n])] : cur.filter(x=>x!==n)); });
+$("insAll").onclick=()=>setIns(null);
+$("insNone").onclick=()=>setIns([]);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(document.querySelector(".pop.on")) closePops(); else if(S.zoom){ S.zoom=null; renderAll(); } else if(S.sel) select(S.sel); }
   if(e.key==="/" && document.activeElement!==$("q")){ e.preventDefault(); $("q").focus(); } });
 let rz; addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>S.view==="map"&&renderMap(),100); });
 
@@ -617,8 +652,21 @@ function renderAll(){
   $("map").style.display = S.view==="map" ? "" : "none";
   $("tablewrap").style.display = S.view==="table" ? "block" : "none";
   $("tip").style.display="none";
-  renderKPIs(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
+  renderIns(); renderKPIs(); renderCrumb(); renderLegend(); renderMovers(); renderDetail();
   S.view==="map" ? renderMap() : renderTable();
+}
+
+// 보험사 목록(순자산 큰 순) — 지역·유형·소형 필터 반영한 펀드 수 표시
+function insurers(){ return d3.rollups(DATA.funds, v=>d3.sum(v,f=>f.net_assets_100m||0), f=>f.insurer_name).sort((a,b)=>b[1]-a[1]); }
+function renderIns(){
+  const cnt = d3.rollup(filtered({ignoreIns:true, ignoreZoom:true}), v=>v.length, f=>f.insurer_name);
+  const list = insurers();
+  if (S.insSel) S.insSel = S.insSel.filter(n=>list.some(x=>x[0]===n));   // 사라진 보험사 정리
+  $("insList").innerHTML = list.map(([n,a])=>`<label><input type="checkbox" value="${esc(n)}" ${!S.insSel||S.insSel.includes(n)?"checked":""}>
+    <span>${esc(n)} <small class="num">${fmtN(cnt.get(n)||0)}개</small></span><small class="num">${fmtAmt(a)}</small></label>`).join("");
+  const k = S.insSel ? S.insSel.length : list.length;
+  $("insCnt").textContent = S.insSel ? `${k}/${list.length}` : "전체";
+  $("insBtn").classList.toggle("on", !!S.insSel);
 }
 
 // ═══════════════════ 시작 ═══════════════════

@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nav-batch
+  group: nav-batch-v2
   cancel-in-progress: false
 
 jobs:
@@ -65,11 +65,32 @@ jobs:
       - if: steps.cfg.outputs.live == 'true'
         run: pip install -r requirements.txt
 
-      - name: 공시실 수집
+      - name: 공시실 수집 (백필은 월 단위로 나눠 매월 커밋 → 중단돼도 진행분 보존·재개)
         if: steps.cfg.outputs.live == 'true'
         run: |
-          if [ -n "${{ steps.cfg.outputs.start }}" ] && [ -n "${{ steps.cfg.outputs.end }}" ]; then
-            python scripts/scrape_klia.py --backfill "${{ steps.cfg.outputs.start }}" "${{ steps.cfg.outputs.end }}"
+          git config user.name "nav-batch"
+          git config user.email "nav-batch@users.noreply.github.com"
+          save() {
+            git add data/raw
+            git diff --cached --quiet && return 0
+            git commit -qm "data: 이력 적재 $1"
+            git pull -q --rebase origin main && git push -q
+          }
+          S="${{ steps.cfg.outputs.start }}"; E="${{ steps.cfg.outputs.end }}"
+          if [ -n "$S" ] && [ -n "$E" ]; then
+            python3 -c "
+          import sys; from datetime import date, timedelta
+          s, e = date.fromisoformat(sys.argv[1]), date.fromisoformat(sys.argv[2])
+          while s <= e:
+              m_end = (s.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+              print(s, min(m_end, e)); s = m_end + timedelta(days=1)
+          " "$S" "$E" > /tmp/chunks.txt
+            cat /tmp/chunks.txt
+            while read cs ce; do
+              echo "=== 구간 $cs ~ $ce ==="
+              python scripts/scrape_klia.py --backfill "$cs" "$ce" --skip-existing || echo "[경고] 구간 $cs~$ce 일부 실패"
+              save "$cs~$ce"
+            done < /tmp/chunks.txt
           else
             python scripts/scrape_klia.py
           fi

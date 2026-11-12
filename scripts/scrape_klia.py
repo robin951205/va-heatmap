@@ -11,7 +11,7 @@
       (월별 분할·압축: GitHub 파일 100MB 제한 회피, 매일 커밋 크기 최소화)
 ※ 협회 이용약관·자동수집 허용 여부 확인 전에는 개인 확인용으로만 사용(확인 필요).
 """
-import argparse, io, json, os, re, sys, time
+import argparse, contextlib, glob, io, json, os, re, signal, sys, time
 from datetime import date, timedelta
 import pandas as pd
 import requests
@@ -20,6 +20,21 @@ CONFIG = os.environ.get("KLIA_CONFIG", "klia_request.json")
 RAW_DIR = os.environ.get("KLIA_RAW_DIR", "data/raw")   # 월별 분할 저장: nav_YYYY-MM.csv.gz
 SLEEP_SEC = 2.0          # 요청 간격(서버 부담 최소화)
 MAX_RETRY = 3
+REQUEST_DEADLINE = 150   # 요청 1건 전체 제한(초): 응답이 느리게 흘러들어와 무한 대기하는 것 방지(2026-11-12 백필 정지 사례)
+
+@contextlib.contextmanager
+def deadline(sec):
+    """SIGALRM 으로 블로킹 소켓 읽기까지 강제 중단 (Linux/macOS, 메인 스레드)"""
+    if not hasattr(signal, "SIGALRM"):
+        yield; return
+    def _raise(*_): raise TimeoutError(f"{sec}초 초과")
+    old = signal.signal(signal.SIGALRM, _raise); signal.alarm(sec)
+    try: yield
+    finally:
+        signal.alarm(0); signal.signal(signal.SIGALRM, old)
+
+class DayFailed(Exception):
+    """한 기준일 수집 실패 — 백필에서는 건너뛰고 다음 날로 진행"""
 
 # ───────────────────────── 설정 ─────────────────────────
 def load_config():
@@ -118,16 +133,21 @@ def request(sess, c, d: date, page: int):
     fmt = c.get("date_format", "%Y-%m-%d")
     body = fill(c.get("params", {}), d, page, fmt)
     method = c.get("method", "GET").upper()
-    kw = dict(method=method, url=c["url"], headers=c.get("headers", {}), timeout=30)
+    kw = dict(method=method, url=c["url"], headers=c.get("headers", {}), timeout=(10, 60))
     if method == "GET": kw["params"] = body
     elif c.get("body") == "json": kw["json"] = body
     else: kw["data"] = body
 
+    r = None
     for i in range(MAX_RETRY):
+        t0 = time.monotonic()
         try:
-            r = sess.request(**kw)
-        except requests.RequestException as e:
-            print(f"  네트워크 오류 재시도 {i+1}: {e}"); time.sleep(SLEEP_SEC * (i + 2)); continue
+            with deadline(REQUEST_DEADLINE):              # 요청 전체(연결~본문 수신)에 하드 제한
+                r = sess.request(**kw)
+        except (requests.RequestException, TimeoutError) as e:
+            print(f"  요청 오류 재시도 {i+1}/{MAX_RETRY}: {e}", flush=True)
+            r = None; sess.close(); time.sleep(SLEEP_SEC * (i + 3)); continue
+        print(f"  응답 {time.monotonic() - t0:.1f}초 · {len(r.content)/1e6:.1f}MB", flush=True)
         if r.status_code in (403, 429):
             sys.exit(f"[중단] HTTP {r.status_code} — 접근 제한. 반복 호출하지 말 것")
         if r.ok:
@@ -137,8 +157,8 @@ def request(sess, c, d: date, page: int):
                 m = re.search(rb"<meta[^>]+charset=[\"']?([\w-]+)", r.content[:5000], re.I)
                 r.encoding = m.group(1).decode() if m else "utf-8"
             return r
-        time.sleep(SLEEP_SEC * (i + 2))
-    sys.exit(f"[중단] 요청 실패 HTTP {r.status_code}: {r.url[:200]}")
+        time.sleep(SLEEP_SEC * (i + 3))
+    raise DayFailed(f"{d} 요청 {MAX_RETRY}회 실패" + (f" (HTTP {r.status_code})" if r is not None else ""))
 
 def fetch_day(sess, c, d: date) -> pd.DataFrame:
     pages, prev_sig, first_n = [], None, None
@@ -196,6 +216,13 @@ def business_days(a: date, b: date):
         if d.weekday() < 5: yield d
         d += timedelta(days=1)
 
+def existing_dates(c):
+    col = c.get("date_column", "기준일"); out = set()
+    for f in glob.glob(os.path.join(RAW_DIR, "nav_*.csv.gz")):
+        try: out |= set(pd.read_csv(f, dtype=str, usecols=[col], keep_default_na=False)[col])
+        except Exception as e: print(f"  [경고] {f} 읽기 실패: {e}")
+    return out
+
 def dedupe(rows, c):
     keys = c.get("dedupe_keys", [])
     if keys and all(k in rows.columns for k in keys):
@@ -220,6 +247,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date"); ap.add_argument("--backfill", nargs=2, metavar=("START", "END"))
     ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--skip-existing", action="store_true", help="이미 저장된 기준일은 건너뜀(백필 재개용)")
     a = ap.parse_args()
     c = load_config()
     sess = requests.Session()
@@ -230,18 +258,28 @@ def main():
 
     days = (list(business_days(date.fromisoformat(a.backfill[0]), date.fromisoformat(a.backfill[1])))
             if a.backfill else [target])
-    saved, empty = 0, []
+    if a.skip_existing:
+        have = existing_dates(c)
+        before = len(days); days = [d for d in days if d.isoformat() not in have]
+        print(f"이미 저장된 {before - len(days)}일 건너뜀 → 대상 {len(days)}일")
+    saved, empty, failed = 0, [], []
     for i, d in enumerate(days):
-        print(f"[{i+1}/{len(days)}] 기준일 {d}")
-        df = fetch_day(sess, c, d)
+        print(f"[{i+1}/{len(days)}] 기준일 {d}", flush=True)
+        try:
+            df = fetch_day(sess, c, d)
+        except DayFailed as e:
+            print(f"  [건너뜀] {e}", flush=True); failed.append(d.isoformat())
+            if len(failed) >= 5 and len(failed) > saved:     # 연속 실패가 많으면 서버 상태 문제 → 중단
+                sys.exit(f"[중단] 실패 {len(failed)}일 (저장 {saved}일): {failed}")
+            continue
         if df.empty: empty.append(d.isoformat())
         else:
             path, n = append(df, c, d)            # 하루 단위 저장 → 백필 중단돼도 이어서 가능
             saved += 1; print(f"  → {path} ({n}행)")
         if i < len(days) - 1: time.sleep(SLEEP_SEC)
 
-    if not saved: sys.exit(f"[중단] 수집 0건 (휴장일/기준가 미확정/조회조건 확인): {empty}")
-    print(f"완료 · 저장 {saved}일 · 빈 응답 {len(empty)}일 {empty[:5]}")
+    print(f"완료 · 저장 {saved}일 · 빈 응답 {len(empty)}일 {empty[:5]} · 실패 {len(failed)}일 {failed}")
+    if not saved and days: sys.exit("[중단] 수집 0건 (휴장일/기준가 미확정/조회조건 확인)")
 
 if __name__ == "__main__":
     main()

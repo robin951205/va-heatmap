@@ -36,6 +36,7 @@
   "paginate": true,
   "max_pages": 300,
   "date_column": "기준일",
+  "required_columns": ["보험사명", "펀드명", "설정일", "기준가격(원)", "순자산액(억원)", "소유형", "대유형"],
   "dedupe_keys": ["보험사명", "펀드명", "설정일", "기준일"],
   "user_agent": "Mozilla/5.0 (VA-Fund-Heatmap personal batch)"
 }

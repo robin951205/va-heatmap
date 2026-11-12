@@ -107,7 +107,11 @@ def parse(resp, c) -> pd.DataFrame:
     else:
         raise ValueError(kind)
     df = flatten_cols(df)
-    return pd.DataFrame() if is_empty_result(df) else df
+    if is_empty_result(df): return pd.DataFrame()
+    need = [k for k in c.get("required_columns", []) if k not in df.columns]
+    if need:
+        sys.exit(f"[중단] 응답 표에 필수 컬럼 없음 {need} (인코딩/화면구조 변경 의심). 받은 컬럼: {list(df.columns)[:8]}")
+    return df
 
 # ───────────────────────── 요청 ─────────────────────────
 def request(sess, c, d: date, page: int):
@@ -127,7 +131,11 @@ def request(sess, c, d: date, page: int):
         if r.status_code in (403, 429):
             sys.exit(f"[중단] HTTP {r.status_code} — 접근 제한. 반복 호출하지 말 것")
         if r.ok:
-            r.encoding = r.apparent_encoding or "utf-8"
+            # 인코딩 자동추정(apparent_encoding)은 페이지마다 틀릴 수 있음(2026-11-12 일부 페이지가 키릴 문자로 깨짐)
+            # → 응답 헤더 charset > HTML meta charset > utf-8 순으로 고정
+            if "charset=" not in r.headers.get("Content-Type", "").lower():
+                m = re.search(rb"<meta[^>]+charset=[\"']?([\w-]+)", r.content[:5000], re.I)
+                r.encoding = m.group(1).decode() if m else "utf-8"
             return r
         time.sleep(SLEEP_SEC * (i + 2))
     sys.exit(f"[중단] 요청 실패 HTTP {r.status_code}: {r.url[:200]}")
@@ -186,7 +194,9 @@ def business_days(a: date, b: date):
 def dedupe(rows, c):
     keys = c.get("dedupe_keys", [])
     if keys and all(k in rows.columns for k in keys):
-        return rows.drop_duplicates(subset=keys, keep="last")
+        ok = rows[keys].replace("", pd.NA).notna().all(axis=1)
+        if (~ok).any(): print(f"  [경고] 중복제거 키가 빈 행 {int((~ok).sum())}개 → 그대로 보존")
+        return pd.concat([rows[ok].drop_duplicates(subset=keys, keep="last"), rows[~ok]], ignore_index=True)
     if keys: print(f"  [경고] 중복제거 키 {keys} 중 일부 컬럼 없음 → 행 전체 기준으로 중복 제거")
     return rows.drop_duplicates(keep="last")
 
@@ -194,7 +204,7 @@ def append(rows: pd.DataFrame, c, d: date):
     """기준일 d 의 수집분을 해당 월 파일에 병합 저장. 반환: 그 월 파일의 총 행수."""
     os.makedirs(RAW_DIR, exist_ok=True)
     path = os.path.join(RAW_DIR, f"nav_{d:%Y-%m}.csv.gz")
-    rows = rows.astype(str)
+    rows = rows.fillna("").astype(str)
     if os.path.exists(path):
         rows = pd.concat([pd.read_csv(path, dtype=str, keep_default_na=False), rows], ignore_index=True)
     rows = dedupe(rows, c)

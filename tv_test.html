@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>코스피 위젯 심볼 비교 (점검용)</title>
+<style>body{font-family:sans-serif;margin:20px;color:#1a2233}h2{font-size:15px;margin:22px 0 6px}p{font-size:13px;color:#555}</style></head><body>
+<h1 style="font-size:18px">코스피 위젯 심볼 비교 (점검용 페이지)</h1>
+<p>장중에 숫자가 움직이는(지연 시세라도 갱신되는) 칸이 어느 것인지 확인용입니다.</p>
+<div id="w"></div>
+<script>
+[["A","KRX:KOSPI"],["B","TVC:KOSPI"],["C","INDEX:KSIC"],["D","KRX:KOSPI200"]].forEach(([k,sym])=>{
+  const h=document.createElement("h2"); h.textContent=`${k}. ${sym}`; w.appendChild(h);
+  const c=document.createElement("div"); c.className="tradingview-widget-container"; c.innerHTML='<div class="tradingview-widget-container__widget"></div>';
+  const sc=document.createElement("script"); sc.async=true; sc.src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js";
+  sc.textContent=JSON.stringify({symbol:sym,width:"100%",isTransparent:false,colorTheme:"light",locale:"kr"});
+  c.appendChild(sc); w.appendChild(c);
+});
+</script>
+<div class="tradingview-widget-copyright" style="font-size:11px;margin-top:16px"><a href="https://www.tradingview.com/markets/" rel="noopener nofollow" target="_blank">World markets</a> by TradingView</div>
+</body></html>

@@ -227,8 +227,9 @@ def anchor_dates(base: date) -> dict:
         "YTD": date(base.year - 1, 12, 31),
     }
 
-def find_available(sess, c, d: date, have: set, label: str):
-    """d 또는 그 직전 영업일 중 공시 기준가가 있는 날을 찾아 저장. 반환: 실제 사용 일자(없으면 None)"""
+def find_available(sess, c, d: date, have: set, label: str, min_rows: int = 0):
+    """d 또는 그 직전 영업일 중 공시 기준가가 있는 날을 찾아 저장. 반환: 실제 사용 일자(없으면 None)
+    min_rows: 이보다 적게 공시된 날은 '일부 보험사 미반영(공시 진행 중)'으로 보고 저장하지 않고 직전 영업일 사용"""
     for k in range(ANCHOR_BACK_DAYS + 1):
         day = d - timedelta(days=k)
         if day.weekday() >= 5: continue
@@ -241,6 +242,8 @@ def find_available(sess, c, d: date, have: set, label: str):
             print(f"    [실패] {e}"); return None
         time.sleep(SLEEP_SEC)
         if df.empty: print("    → 공시 없음(휴장/미확정), 직전 영업일 시도"); continue
+        if min_rows and len(df) < min_rows:
+            print(f"    → {len(df)}행 < 기준 {min_rows}행: 공시 진행 중으로 보고 저장 안 함, 직전 영업일 사용"); continue
         path, n = append(df, c, day); have.add(day.isoformat())
         print(f"    → 저장 {path} ({len(df)}행)"); return day
     print(f"  [경고] {label}: {d} 이전 {ANCHOR_BACK_DAYS}일 내 공시 없음"); return None
@@ -248,7 +251,13 @@ def find_available(sess, c, d: date, have: set, label: str):
 def run_anchors(sess, c, target: date):
     have = existing_dates(c)
     print(f"[기준시점 조회] 목표 기준일 {target}")
-    base = find_available(sess, c, target, have, "기준일")
+    # 직전 저장 기준일 행수의 95% 미만이면 공시 진행 중으로 판단 (다음 보완 실행에서 다시 시도)
+    min_rows = 0
+    if have:
+        last = max(have); f = os.path.join(RAW_DIR, f"nav_{last[:7]}.csv.gz")
+        try: min_rows = int((pd.read_csv(f, dtype=str, usecols=[c.get("date_column", "기준일")])[c.get("date_column", "기준일")] == last).sum() * 0.95)
+        except Exception: min_rows = 0
+    base = find_available(sess, c, target, have, "기준일", min_rows)
     if base is None: sys.exit("[중단] 기준일 기준가를 찾지 못함")
     used = {"기준일": base}
     for p, d in anchor_dates(base).items():
@@ -314,7 +323,8 @@ def main():
     sess = requests.Session()
     sess.headers["User-Agent"] = c.get("user_agent", "Mozilla/5.0")
 
-    target = date.fromisoformat(a.date) if a.date else prev_business_day(today_kst())
+    # 기준일 = 공시실 조회일자. D일 기준가 = D-1일까지 시장 성과 반영, D일 아침 공시 → 당일부터 조회
+    target = date.fromisoformat(a.date) if a.date else today_kst()
     if a.probe: return probe(sess, c, target)
     if a.anchors:
         run_anchors(sess, c, target)

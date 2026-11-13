@@ -235,7 +235,8 @@ def find_available(sess, c, d: date, have: set, label: str, min_rows: int = 0):
     for k in range(ANCHOR_BACK_DAYS + 1):
         day = d - timedelta(days=k)
         if day.weekday() >= 5: continue
-        if day.isoformat() in have:
+        # 당일 기준일은 저장돼 있어도 매 실행 다시 조회(늦게 공시한 보험사분 보충). 시작일들은 저장분 재사용
+        if day.isoformat() in have and not (label == "기준일" and k == 0 and day == today_kst()):
             print(f"  {label:<4} {day} (저장분 사용)"); LOG.append({"label": label, "date": day.isoformat(), "result": "저장분"}); return day
         print(f"  {label:<4} {day} 조회", flush=True)
         try:

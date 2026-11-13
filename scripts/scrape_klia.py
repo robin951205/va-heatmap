@@ -12,7 +12,7 @@
       (월별 분할·압축: GitHub 파일 100MB 제한 회피, 매일 커밋 크기 최소화)
 ※ 협회 이용약관·자동수집 허용 여부 확인 전에는 개인 확인용으로만 사용(확인 필요).
 """
-import argparse, contextlib, glob, io, json, os, re, signal, sys, time
+import json, argparse, contextlib, glob, io, json, os, re, signal, sys, time
 from datetime import date, timedelta
 import pandas as pd
 import requests
@@ -227,6 +227,8 @@ def anchor_dates(base: date) -> dict:
         "YTD": date(base.year - 1, 12, 31),
     }
 
+LOG = []   # 이번 실행의 조회 기록 → data/batch_status.json (로그 열람 없이 진단용)
+
 def find_available(sess, c, d: date, have: set, label: str, min_rows: int = 0):
     """d 또는 그 직전 영업일 중 공시 기준가가 있는 날을 찾아 저장. 반환: 실제 사용 일자(없으면 None)
     min_rows: 이보다 적게 공시된 날은 '일부 보험사 미반영(공시 진행 중)'으로 보고 저장하지 않고 직전 영업일 사용"""
@@ -234,18 +236,20 @@ def find_available(sess, c, d: date, have: set, label: str, min_rows: int = 0):
         day = d - timedelta(days=k)
         if day.weekday() >= 5: continue
         if day.isoformat() in have:
-            print(f"  {label:<4} {day} (저장분 사용)"); return day
+            print(f"  {label:<4} {day} (저장분 사용)"); LOG.append({"label": label, "date": day.isoformat(), "result": "저장분"}); return day
         print(f"  {label:<4} {day} 조회", flush=True)
         try:
             df = fetch_day(sess, c, day)
         except DayFailed as e:
-            print(f"    [실패] {e}"); return None
+            print(f"    [실패] {e}"); LOG.append({"label": label, "date": day.isoformat(), "result": f"실패: {e}"}); return None
         time.sleep(SLEEP_SEC)
-        if df.empty: print("    → 공시 없음(휴장/미확정), 직전 영업일 시도"); continue
+        if df.empty:
+            print("    → 공시 없음(휴장/미확정), 직전 영업일 시도"); LOG.append({"label": label, "date": day.isoformat(), "rows": 0, "result": "공시 없음"}); continue
         if min_rows and len(df) < min_rows:
-            print(f"    → {len(df)}행 < 기준 {min_rows}행: 공시 진행 중으로 보고 저장 안 함, 직전 영업일 사용"); continue
+            print(f"    → {len(df)}행 < 기준 {min_rows}행: 공시 진행 중으로 보고 저장 안 함, 직전 영업일 사용")
+            LOG.append({"label": label, "date": day.isoformat(), "rows": len(df), "min_rows": min_rows, "result": "일부 공시(미저장)"}); continue
         path, n = append(df, c, day); have.add(day.isoformat())
-        print(f"    → 저장 {path} ({len(df)}행)"); return day
+        print(f"    → 저장 {path} ({len(df)}행)"); LOG.append({"label": label, "date": day.isoformat(), "rows": len(df), "result": "저장"}); return day
     print(f"  [경고] {label}: {d} 이전 {ANCHOR_BACK_DAYS}일 내 공시 없음"); return None
 
 def run_anchors(sess, c, target: date):
@@ -265,6 +269,10 @@ def run_anchors(sess, c, target: date):
     print("사용 일자: " + ", ".join(f"{k}={v}" for k, v in used.items()))
     miss = [k for k, v in used.items() if v is None]
     if miss: print(f"[경고] 시작일 기준가 없음 → 해당 기간 N/A: {miss}")
+    # 조회 결과가 바뀔 때만 파일 내용이 바뀌도록 실행 시각은 넣지 않음
+    with open("data/batch_status.json", "w", encoding="utf-8") as f:
+        json.dump({"target": target.isoformat(), "base_date": base.isoformat(), "log": [x for x in LOG if x["label"] == "기준일"]},
+                  f, ensure_ascii=False, indent=1)
 
 def prune(months: int):
     cutoff = (pd.Timestamp(today_kst()) - pd.DateOffset(months=months)).strftime("%Y-%m")

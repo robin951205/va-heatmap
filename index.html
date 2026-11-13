@@ -91,6 +91,8 @@ a{color:var(--acc)}
 .tvbox{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 .brief.fold .tvbox{display:none}
 .tvbox .tradingview-widget-copyright{font-size:11px;color:var(--tx3)}
+.tvgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+@media (max-width:640px){.tvgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tvbox .tradingview-widget-copyright a{color:var(--tx3)}
 
 /* ── 툴바 ── */
@@ -1004,17 +1006,17 @@ const TV_SYMBOLS = [
 let tvLoaded = false, tvTheme = null;
 function loadTV(){
   if (!TV_ON || (tvLoaded && tvTheme===S.theme)) return; tvLoaded = true; tvTheme = S.theme;
-  const box=$("tvbox"); box.innerHTML="";
-  const narrow = innerWidth<=640;
-  const c=document.createElement("div"); c.className="tradingview-widget-container";
-  c.innerHTML=`<div class="tradingview-widget-container__widget"></div>`;
-  const sc=document.createElement("script"); sc.async=true; sc.type="text/javascript";
-  sc.src = narrow ? "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js"
-                  : "https://s3.tradingview.com/external-embedding/embed-widget-tickers.js";
-  const cfg = {symbols:TV_SYMBOLS, colorTheme:S.theme==="dark"?"dark":"light", isTransparent:true, showSymbolLogo:false, locale:"kr"};
-  if (narrow) Object.assign(cfg,{displayMode:"compact", largeChartUrl:""});
-  sc.textContent = JSON.stringify(cfg);
-  c.appendChild(sc); box.appendChild(c);
+  // 종목별 '단일 시세' 위젯: 점검 결과 코스피(INDEX:KSIC)는 이 형식에서만 장중 갱신됨(2026-11-13)
+  const box=$("tvbox"); box.innerHTML=`<div class="tvgrid"></div>`;
+  const g=box.firstChild;
+  TV_SYMBOLS.forEach(({proName,title})=>{
+    const c=document.createElement("div"); c.className="tradingview-widget-container";
+    c.innerHTML=`<div class="tradingview-widget-container__widget"></div>`;
+    const sc=document.createElement("script"); sc.async=true; sc.type="text/javascript";
+    sc.src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js";
+    sc.textContent=JSON.stringify({symbol:proName, width:"100%", isTransparent:true, colorTheme:S.theme==="dark"?"dark":"light", locale:"kr"});
+    c.appendChild(sc); g.appendChild(c);
+  });
   const cp=document.createElement("div"); cp.className="tradingview-widget-copyright";
   cp.innerHTML=`<a href="https://www.tradingview.com/markets/" rel="noopener nofollow" target="_blank">World markets</a> by TradingView · 지연 시세, S&P 500·나스닥 100·다우존스는 지수 추종 CFD 시세로 실제 지수와 소폭 다를 수 있습니다 · 펀드 기준일과 시점이 다릅니다`;
   box.appendChild(cp);

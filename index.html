@@ -81,13 +81,17 @@ a{color:var(--acc)}
 .brief .tag{flex:none;font-size:12px;font-weight:700;color:var(--acc);background:var(--acc2);border-radius:999px;padding:3px 10px;margin-top:1px}
 .brief .txt{flex:1;min-width:0;font-size:13.5px;line-height:1.65;color:var(--tx2)}
 .brief .txt b{color:var(--tx);font-weight:600}
-.brief.fold .txt{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.brief.fold #briefTxt{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .brief .tg{flex:none;border:0;background:none;color:var(--acc);font-size:12.5px;font-weight:600;padding:2px 0}
 .brief .note{display:block;font-size:11.5px;color:var(--tx3);margin-top:3px}
 .mkt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .mkt span{display:inline-flex;gap:6px;align-items:baseline;font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:3px 8px;background:var(--panel2);color:var(--tx2)}
 .mkt span b{color:var(--tx);font-weight:600}
 .brief.fold .mkt{display:none}
+.tvbox{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.brief.fold .tvbox{display:none}
+.tvbox .tradingview-widget-copyright{font-size:11px;color:var(--tx3)}
+.tvbox .tradingview-widget-copyright a{color:var(--tx3)}
 
 /* ── 툴바 ── */
 .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);
@@ -363,7 +367,7 @@ footer b{color:var(--tx2);font-weight:600}
   <!-- 오늘의 요약 (공시 데이터로 자동 작성, 전망 없음) -->
   <div class="brief fold" id="brief" aria-live="polite">
     <span class="tag">오늘의 요약</span>
-    <div class="txt" id="briefTxt"></div>
+    <div class="txt"><div id="briefTxt"></div><div class="tvbox" id="tvbox"></div></div>
     <button class="tg" id="briefTg" aria-expanded="false">펼치기</button>
   </div>
 
@@ -895,6 +899,7 @@ function renderAll(){
   $("segPeriod").innerHTML = PERIODS.map(p=>`<button data-v="${p}" aria-pressed="${p===S.period}" class="${hasP(p)?"":"nodata"}" title="${PLABEL[p]}${hasP(p)?"":" · 데이터 없음"}">${p}</button>`).join("");
   document.documentElement.dataset.theme = S.theme==="dark" ? "dark" : "light";
   NEU = PALS[S.theme==="dark"?"dark":"light"].neu;
+  if (tvLoaded && tvTheme!==S.theme && !$("brief").classList.contains("fold")) loadTV();   // 테마 바뀌면 위젯 색 다시
   ["segGroup","segRegion","segScale","segConv","segPal","segView","segSize","segTheme"].forEach((id,i)=>setSeg(id,[S.group,S.region,S.scale,S.conv,S.pal,S.view,S.size,S.theme][i]));
   $("segSize").style.display = $("sizeLbl").style.display = S.view==="map" ? "" : "none";
   $("scatter").style.display = S.view==="scatter" ? "block" : "none";
@@ -988,10 +993,36 @@ function marketHtml(){
   const it=MARKET.indices.map(m=>{ const d=new Date(m.date+"T00:00:00"); return `<span title="${esc(m.source||"")}">${esc(m.name)} <b class="num">${fmtN(m.close,2)}</b><b class="num" style="color:${txtColor(m.chg_pct)}">${fmt(m.chg_pct)}</b><small>${d.getMonth()+1}/${d.getDate()} 종가</small></span>`; }).join("");
   return `<div class="mkt">${it}</div><span class="note">지수: ${esc(MARKET.source_note||"")} · 지수 기준일은 펀드 기준일과 다를 수 있습니다</span>`;
 }
-function renderBrief(){
-  $("briefTxt").innerHTML = briefText() + `<span class="note">공시 기준가로 자동 작성한 과거 실적 요약이며, 향후 전망이나 투자 권유가 아닙니다.</span>` + marketHtml();
+// 주요 지수: TradingView 무료 위젯(표시 권한은 위젯 제공사). 외부 호출이므로 '펼치기'를 눌렀을 때만 불러옴
+const TV_ON = true;
+const TV_SYMBOLS = [
+  {proName:"INDEX:KSIC",       title:"코스피"},
+  {proName:"FOREXCOM:SPXUSD",  title:"S&P 500"},
+  {proName:"FOREXCOM:NSXUSD",  title:"나스닥 100"},
+  {proName:"FOREXCOM:DJI",     title:"다우존스"},
+];
+let tvLoaded = false, tvTheme = null;
+function loadTV(){
+  if (!TV_ON || (tvLoaded && tvTheme===S.theme)) return; tvLoaded = true; tvTheme = S.theme;
+  const box=$("tvbox"); box.innerHTML="";
+  const narrow = innerWidth<=640;
+  const c=document.createElement("div"); c.className="tradingview-widget-container";
+  c.innerHTML=`<div class="tradingview-widget-container__widget"></div>`;
+  const sc=document.createElement("script"); sc.async=true; sc.type="text/javascript";
+  sc.src = narrow ? "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js"
+                  : "https://s3.tradingview.com/external-embedding/embed-widget-tickers.js";
+  const cfg = {symbols:TV_SYMBOLS, colorTheme:S.theme==="dark"?"dark":"light", isTransparent:true, showSymbolLogo:false, locale:"kr"};
+  if (narrow) Object.assign(cfg,{displayMode:"compact", largeChartUrl:""});
+  sc.textContent = JSON.stringify(cfg);
+  c.appendChild(sc); box.appendChild(c);
+  const cp=document.createElement("div"); cp.className="tradingview-widget-copyright";
+  cp.innerHTML=`<a href="https://www.tradingview.com/markets/" rel="noopener nofollow" target="_blank">World markets</a> by TradingView · 지연 시세, S&P 500·나스닥 100·다우존스는 지수 추종 CFD 시세로 실제 지수와 소폭 다를 수 있습니다 · 펀드 기준일과 시점이 다릅니다`;
+  box.appendChild(cp);
 }
-$("briefTg").onclick=()=>{ const f=$("brief").classList.toggle("fold"); $("briefTg").textContent=f?"펼치기":"접기"; $("briefTg").setAttribute("aria-expanded",!f); };
+function renderBrief(){
+  $("briefTxt").innerHTML = briefText() + `<span class="note">공시 기준가로 자동 작성한 과거 실적 요약이며, 향후 전망이나 투자 권유가 아닙니다.</span>` + (TV_ON ? "" : marketHtml());
+}
+$("briefTg").onclick=()=>{ const f=$("brief").classList.toggle("fold"); $("briefTg").textContent=f?"펼치기":"접기"; $("briefTg").setAttribute("aria-expanded",!f); if(!f) loadTV(); };
 
 // ═══════════════════ 시작 ═══════════════════
 const MOCK = { base_date:"2026-01-01", source:"MOCK", funds:[

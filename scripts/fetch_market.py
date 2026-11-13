@@ -30,7 +30,7 @@ def kospi():
     try:
         items = r.json()["response"]["body"]["items"]["item"]
     except Exception:
-        sys.exit(f"[중단] 응답 형식 확인 필요: {r.text[:300]}")
+        sys.exit(f"응답 형식 확인 필요: {r.text[:300].replace(KEY, '***')}")
     items = [i for i in (items if isinstance(items, list) else [items]) if i.get("idxNm") == "코스피"]
     if not items:
         sys.exit("[중단] 코스피 항목 없음")
@@ -40,17 +40,31 @@ def kospi():
             "date": f"{d[:4]}-{d[4:6]}-{d[6:]}", "source": "금융위원회 지수시세정보(공공데이터포털)"}
 
 
+def status(msg):
+    """진단용 상태 기록(인증키는 기록하지 않음)"""
+    os.makedirs("data", exist_ok=True)
+    with open("data/market_status.json", "w", encoding="utf-8") as f:
+        json.dump({"result": msg}, f, ensure_ascii=False, indent=1)
+    print(msg)
+
+
 def main():
     if not KEY:
-        print("DATA_GO_KR_KEY 없음 → 지수 수집 건너뜀(기존 파일 유지)")
+        status("DATA_GO_KR_KEY 없음 → 지수 수집 건너뜀")
         return
+    try:
+        k = kospi()
+    except SystemExit as e:
+        status(f"실패: {e}"); return
+    except Exception as e:
+        status(f"실패: {type(e).__name__}: {str(e).replace(KEY, '***')[:300]}"); return
     out = {"updated": datetime.now(KST).isoformat(timespec="minutes"),
            "source_note": "코스피 — 금융위원회 지수시세정보(공공데이터포털)",
-           "indices": [kospi()]}
+           "indices": [k]}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
-    print("저장", OUT, out["indices"])
+    status(f"성공: 코스피 {k['date']} {k['close']}")
 
 
 if __name__ == "__main__":

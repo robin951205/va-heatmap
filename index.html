@@ -1084,6 +1084,7 @@ function marketHtml(){
 // 국고채·환율: 한국은행 ECOS (일 배치 → data/indicators.json)
 // VIX·주요 지수: TradingView 무료 위젯(표시 권한은 위젯 제공사, 지연 시세). VIX 는 Cboe 저작권 데이터라 직접 수집·재게시하지 않음
 let IND = null;
+const FX_SYMBOL = "FX_IDC:USDKRW";    // 2026-11-14 점검: 표시 확인 (대안 FX:USDKRW, PEPPERSTONE:USDKRW). 국고채는 무료 위젯 미제공 → 한국은행 전일 마감값
 const VIX_SYMBOL = "CAPITALCOM:VIX";   // 2026-11-14 점검: 위젯 표시 확인 (대안 PEPPERSTONE:VIX)
 const TV_SYMBOLS = [   // 미국 지수는 지수 추종 CFD
   {proName:"FOREXCOM:SPXUSD",  title:"S&P 500"},
@@ -1121,13 +1122,13 @@ const HELP = {
     read:[["−5bp 이하","큰 폭 하락"],["−5~−2bp","하락"],["±2bp 미만","보합"],["+2~+5bp","상승"],["+5bp 이상","큰 폭 상승"]],
     readNote:"전 영업일 대비 3년물 변화 기준. 1bp = 0.01%p",
     use:"금리가 오르면 이미 가진 채권의 가격이 내려가 채권형·채권혼합형 펀드 기준가에 하락 요인이 되고, 금리가 내리면 상승 요인이 됩니다. 만기가 긴 채권을 많이 담은 펀드일수록 영향이 큽니다.",
-    src:"한국은행 경제통계시스템(ECOS) 시장금리(일별)"},
+    src:"한국은행 경제통계시스템(ECOS) 시장금리(일별) · 전 영업일 마감값 (장중 값은 무료 위젯에서 제공되지 않음)"},
   fx: {t:"원/달러 환율",
     what:"1달러를 사는 데 필요한 원화 금액(매매기준율)입니다. 숫자가 커지면 원화 가치가 내려간(원화 약세) 것입니다.",
     read:[["범위 하단 20%","1년 중 낮은 편 (원화 강세)"],["20~80%","1년 중 보통"],["범위 상단 20%","1년 중 높은 편 (원화 약세)"]],
     readNote:"최근 1년 최저~최고 범위에서 현재 값의 위치 기준",
     use:"환헤지를 하지 않는 해외투자 펀드는 환율이 오르면(원화 약세) 원화로 환산한 수익률에 플러스, 내리면 마이너스 요인이 됩니다. 환헤지형 펀드는 영향이 작습니다. 펀드별 환헤지 여부는 보험사 공시의 운용설명서에서 확인할 수 있습니다.",
-    src:"한국은행 경제통계시스템(ECOS) 주요국 통화의 대원화 환율(매매기준율)"},
+    src:"숫자 TradingView 위젯(지연 시세) · 구간·1년 범위 한국은행 경제통계시스템(ECOS) 매매기준율(전 영업일)"},
 };
 function helpHtml(k){
   const h=HELP[k];
@@ -1163,7 +1164,7 @@ function renderMarket(){
   const q=k=>`<button class="mk-q" data-k="${k}" aria-label="${HELP[k].t} 설명 보기">?</button>`;
   const lbg=(labels,on)=>`<div class="mk-lbg" style="grid-template-columns:repeat(${labels.length},1fr)">${labels.map((l,i)=>`<span class="${i===on?"on":""}">${l}</span>`).join("")}</div>`;
   // 국고채 (3년 전일 대비 변화로 구간)
-  let rateT=`<div class="mk-t"><div class="r"><span class="nm">국고채 금리 ${q("rate")}</span>${r3?`<span class="dt">${mdate(r3.date)} · 한국은행</span>`:""}</div>`;
+  let rateT=`<div class="mk-t"><div class="r"><span class="nm">국고채 금리 ${q("rate")}</span>${r3?`<span class="dt">${mdate(r3.date)} 마감 · 한국은행</span>`:""}</div>`;
   if (r3){
     const bi=bandOf("rate", r3.chg_bp);
     rateT+=`<div class="val"><b class="num">${r3.value.toFixed(3)}%</b><span class="num">3년 ${sgn(r3.chg_bp)}bp</span>${r10?`<span class="num">· 10년 ${r10.value.toFixed(3)}% (${sgn(r10.chg_bp)}bp)</span>`:""}</div>
@@ -1171,15 +1172,16 @@ function renderMarket(){
       ${bar(5,bi)}${lbg(["큰 폭↓","하락","보합","상승","큰 폭↑"],bi)}`;
   } else rateT+=`<div class="sub">데이터 준비 중입니다.</div>`;
   rateT+=`</div>`;
-  // 환율 (1년 최저~최고 범위에서 현재 위치로 구간)
-  let fxT=`<div class="mk-t"><div class="r"><span class="nm">원/달러 환율 ${q("fx")}</span>${fx?`<span class="dt">${mdate(fx.date)} · 한국은행</span>`:""}</div>`;
+  // 환율: 숫자는 위젯(장중 지연 시세), 구간·1년 범위는 한국은행 전일 매매기준율
+  let fxT=`<div class="mk-t"><div class="r"><span class="nm">원/달러 환율 ${q("fx")}</span>`;
   if (fx){
     const pos=fx.max_1y>fx.min_1y?(fx.value-fx.min_1y)/(fx.max_1y-fx.min_1y)*100:50, bi=bandOf("fx", pos);
-    fxT+=`<div class="val"><b class="num">${fmtN(fx.value,2)}원</b><span class="num">전일 대비 ${fx.chg>0?"+":fx.chg<0?"−":"±"}${Math.abs(fx.chg).toFixed(2)}</span></div>
-      <div class="r"><span class="mk-chip">${BANDS.fx[bi].label}${bi===0?" (원화 강세)":bi===2?" (원화 약세)":""}</span></div>
+    fxT+=`<span class="mk-chip">${BANDS.fx[bi].label}${bi===0?" (원화 강세)":bi===2?" (원화 약세)":""}</span><span class="dt">TradingView 지연</span></div>
+      <div class="tvq" id="fxW"></div>
       <div class="mk-bar"><i></i><u style="left:${Math.max(1,Math.min(99,pos))}%"></u></div>
-      <div class="mk-lb num"><span>1년 최저 ${fmtN(fx.min_1y,0)}</span><span>1년 최고 ${fmtN(fx.max_1y,0)}</span></div>`;
-  } else fxT+=`<div class="sub">데이터 준비 중입니다.</div>`;
+      <div class="mk-lb num"><span>1년 최저 ${fmtN(fx.min_1y,0)}</span><span>1년 최고 ${fmtN(fx.max_1y,0)}</span></div>
+      <div class="mk-lb"><span>구간: ${mdate(fx.date)} 한국은행 매매기준율 ${fmtN(fx.value,2)}원 기준 (위젯 값과 시점이 다를 수 있음)</span></div>`;
+  } else fxT+=`<span class="dt">TradingView 지연</span></div><div class="tvq" id="fxW"></div>`;
   fxT+=`</div>`;
   // VIX (위젯 값 + 구간 눈금. 값은 위젯에서만 표시)
   const vb=IND&&IND.vix_band, vbi=vb&&Number.isInteger(vb.band)?vb.band:-1;
@@ -1187,7 +1189,7 @@ function renderMarket(){
       ${bar(4,vbi)}${lbg(["~15 매우 안정","15~20 안정","20~30 경계","30~ 불안"],vbi)}
       ${vbi>=0?`<div class="mk-lb"><span>구간: ${mdate(vb.date)} 미국 종가 기준 (위젯 값과 시점이 다를 수 있음)</span></div>`:""}</div>`;
   $("mkGrid").innerHTML=rateT+fxT+vixT;
-  $("mkSum").innerHTML=[r3?`국고채 3년 <b class="num">${r3.value.toFixed(2)}%</b> (${sgn(r3.chg_bp)}bp)`:"", fx?`원/달러 <b class="num">${fmtN(fx.value,1)}</b>`:"", vbi>=0?`VIX <b>${BANDS.vix[vbi].label}</b>`:"VIX", "주요 지수"].filter(Boolean).join(" · ");
+  $("mkSum").innerHTML=[r3?`국고채 3년 <b class="num">${r3.value.toFixed(2)}%</b> (${sgn(r3.chg_bp)}bp)`:"", fx?`원/달러 <b>${BANDS.fx[bandOf("fx", fx.max_1y>fx.min_1y?(fx.value-fx.min_1y)/(fx.max_1y-fx.min_1y)*100:50)].label}</b>`:"", vbi>=0?`VIX <b>${BANDS.vix[vbi].label}</b>`:"VIX", "주요 지수"].filter(Boolean).join(" · ");
   loadVix(true);
 }
 let vixTheme=null;
@@ -1195,8 +1197,9 @@ function loadVix(force){
   const el=$("vixW"); if(!el) return;
   if (!force && vixTheme===S.theme && el.childElementCount) return; vixTheme=S.theme;
   if ($("mk").classList.contains("fold")) { vixTheme=null; return; }   // 접힘 상태에선 외부 호출 안 함
-  el.innerHTML=""; el.appendChild(tvScript("https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js",
-    {symbol:VIX_SYMBOL, width:"100%", isTransparent:true, colorTheme:tvTheme(), locale:"kr"}));
+  [["vixW",VIX_SYMBOL],["fxW",FX_SYMBOL]].forEach(([id,sym])=>{ const w=$(id); if(!w) return; w.innerHTML="";
+    w.appendChild(tvScript("https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js",
+      {symbol:sym, width:"100%", isTransparent:true, colorTheme:tvTheme(), locale:"kr"})); });
 }
 let idxTheme=null;
 function loadIdx(){

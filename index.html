@@ -322,6 +322,7 @@ table.ft{width:100%;border-collapse:collapse;font-size:12.5px}
 .insbtn b{color:var(--tx);font-weight:600}
 .insbtn.on{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
 
+.views{margin-top:6px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;color:var(--tx2)} .views b{color:var(--tx);font-weight:700} .views small{color:var(--tx3)}
 .fdet{margin-top:4px} .fdet summary{cursor:pointer;color:var(--tx2);font-weight:600} .fdet[open] summary{margin-bottom:2px}
 footer{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);font-size:11.5px;color:var(--tx3);line-height:1.8}
 footer b{color:var(--tx2);font-weight:600}
@@ -607,6 +608,7 @@ footer a{color:var(--tx3)}
     <b>과거 수익률은 미래 수익을 보장하지 않습니다.</b> 본 화면은 특정 펀드의 추천이나 펀드변경 권유가 아닙니다.<br>
     데이터 출처: 생명보험협회 공시실(변액보험 펀드현황). 본 사이트는 개인이 제작한 비공식 정보 시각화로, 생명보험협회 및 특정 보험회사와 무관하며 원자료와 차이가 있을 수 있습니다.
     <span id="reqWrap" hidden> · <a href="#" id="reqOpen">관리자 권한요청</a></span>
+    <div class="views" id="views" hidden></div>
     <details class="fdet"><summary>계산 방식 자세히</summary>
       전일~올해는 기준일과 기간 시작일(휴장 시 직전 영업일) 기준가로 계산한 누적 수익률이고, 1년·3년·5년은 공시 수익률이며 모두 연환산하지 않았습니다.
       설정 후 기간이 모자란 펀드는 N/A(빗금)로 표시합니다. '유형 평균 대비'는 같은 펀드유형의 순자산 가중 평균 수익률과의 차이(%p)이며 위험(변동성)을 반영하지 않은 단순 비교입니다.
@@ -1360,6 +1362,15 @@ $("gNext").onclick=()=>{ if(gI>=guideSteps().length-1) endGuide(); else showGuid
 $("gPrev").onclick=()=>showGuide(gI-1);
 $("gSkip").onclick=endGuide;
 $("guide").addEventListener("cancel",()=>{ try{ localStorage.setItem("vah_guide","1"); }catch(_){} });
+
+// ═══════════════════ 조회수 (오늘 · 이번 달 · 누적) ═══════════════════
+(function(){
+  let send=true; try{ const t=+localStorage.getItem("vah_hit")||0; send = Date.now()-t > 30*60e3; if(send) localStorage.setItem("vah_hit", Date.now()); }catch(_){}
+  fetch(send?"/api/hit":"/api/stats", send?{method:"POST",headers:{"content-type":"application/json"},body:"{}"}:{cache:"no-store"})
+    .then(r=>r.ok?r.json():null).then(v=>{ if(!v||v.total==null) return;
+      $("views").innerHTML=`<span>조회수</span><span>오늘 <b class="num">${fmtN(v.today)}</b></span><span>이번 달 <b class="num">${fmtN(v.month)}</b></span><span>누적 <b class="num">${fmtN(v.total)}</b></span>${v.since?`<small>${v.since.slice(2).replace(/-/g,".")}부터 집계 · 같은 브라우저 30분 내 재방문 제외</small>`:""}`;
+      $("views").hidden=false; }).catch(()=>{});
+})();
 
 // ═══════════════════ 관리자 권한요청 (운영계 서버 기능이 있을 때만 링크 표시) ═══════════════════
 fetch("/api/health",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(h=>{ if(h&&h.ok&&h.stage==="production") $("reqWrap").hidden=false; }).catch(()=>{});

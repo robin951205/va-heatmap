@@ -88,22 +88,52 @@ a{color:var(--acc)}
 .brief .tag{flex:none;font-size:12px;font-weight:700;color:var(--acc);background:var(--acc2);border-radius:999px;padding:3px 10px;margin-top:1px}
 .brief .txt{flex:1;min-width:0;font-size:13.5px;line-height:1.65;color:var(--tx2)}
 .brief .txt b{color:var(--tx);font-weight:600}
-.brief.fold #briefTxt{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.brief.fold .txt{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .brief .tg{flex:none;border:0;background:none;color:var(--acc);font-size:12.5px;font-weight:600;padding:2px 0}
 .brief .note{display:block;font-size:11.5px;color:var(--tx3);margin-top:3px}
 .mkt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .mkt span{display:inline-flex;gap:6px;align-items:baseline;font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:3px 8px;background:var(--panel2);color:var(--tx2)}
 .mkt span b{color:var(--tx);font-weight:600}
 .brief.fold .mkt{display:none}
-.tvbox{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
-.brief.fold .tvbox{display:none}
-.tvbox .tradingview-widget-copyright{font-size:11px;color:var(--tx3)}
+/* ── 시장 지표 (펀드 정보 보조 · 중립색) ── */
+.mk{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px 8px;margin-bottom:12px;box-shadow:var(--shadow)}
+.mk-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mk-h b{font-size:13.5px} .mk-h .mk-note{font-size:12px;color:var(--tx3)} .mk-h .sp{flex:1}
+.mk-btn{border:1px solid var(--line2);background:var(--panel2);color:var(--tx2);border-radius:8px;padding:4px 10px;font-size:12.5px;font-weight:600}
+.mk-btn[aria-expanded=true]{color:var(--acc);border-color:var(--acc)}
+.mk-sum{display:none;flex-basis:100%;font-size:12.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk.fold .mk-sum{display:block} .mk.fold .mk-grid,.mk.fold .mk-dis,.mk.fold .mk-idx,.mk.fold #idxTg,.mk.fold .mk-note{display:none}
+.mk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px}
+.mk-t{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel2);min-width:0;display:flex;flex-direction:column;gap:3px}
+.mk-t .r{display:flex;align-items:center;gap:8px;min-width:0} .mk-t .r .dt{margin-left:auto;font-size:11px;color:var(--tx3);white-space:nowrap}
+.mk-t .nm{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tx2);font-weight:600}
+.mk-q{width:18px;height:18px;border-radius:50%;border:1px solid var(--line2);background:var(--panel);color:var(--tx3);font-size:11px;font-weight:700;line-height:1;padding:0;flex:none}
+.mk-q:hover,.mk-q:focus-visible{color:var(--acc);border-color:var(--acc)}
+.mk-t .val{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap} .mk-t .val b{font-size:18px;font-weight:700;color:var(--tx)}
+.mk-t .val span{font-size:12.5px;color:var(--tx2)} .mk-t .sub{font-size:12px;color:var(--tx2)}
+.mk-chip{align-self:flex-start;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;background:var(--acc2);color:var(--acc)}
+.mk-chip.l0{background:#e6f4ef;color:#1f7a5a} .mk-chip.l1{background:#eef4ea;color:#4d7a2a} .mk-chip.l2{background:#fff3df;color:#9a5b00} .mk-chip.l3{background:#fde9e4;color:#b23c17}
+[data-theme=dark] .mk-chip.l0{background:#173a2f;color:#7ad6b0} [data-theme=dark] .mk-chip.l1{background:#25331b;color:#b4d68d} [data-theme=dark] .mk-chip.l2{background:#3a2b12;color:#f0c27a} [data-theme=dark] .mk-chip.l3{background:#40211a;color:#f5a38a}
+.mk-bar{position:relative;display:flex;gap:2px;height:6px;margin-top:2px} .mk-bar i{flex:1;background:var(--line2);border-radius:2px}
+.mk-bar i.on{background:var(--tx2)} .mk-bar u{position:absolute;top:-3px;width:3px;height:12px;border-radius:2px;background:var(--tx);transform:translateX(-50%)}
+.mk-lb{display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx3);gap:4px}
+.mk-lbg{display:grid;gap:2px;font-size:10.5px;color:var(--tx3);text-align:center;line-height:1.3} .mk-lbg span.on{color:var(--tx);font-weight:700}
+.mk-ft{font-size:11px;color:var(--tx3);margin-top:auto}
+.mk-t .tvq{height:84px;overflow:hidden;margin:-2px -6px 0}
+.mk-dis{font-size:11.5px;color:var(--tx3);margin:7px 0 0}
+.mk-idx{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.mk-idx .tradingview-widget-copyright{font-size:11px;color:var(--tx3);line-height:1.5} .mk-idx .tradingview-widget-copyright a{color:var(--tx3)}
 .tvgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .kospiLink{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--acc);text-decoration:none;
   border:1px solid var(--line2);border-radius:8px;padding:6px 10px;margin-bottom:6px;background:var(--panel2)}
 .kospiLink b{color:var(--tx)} .kospiLink small{flex-basis:100%;font-size:11px;color:var(--tx3)}
-.tvbox .tradingview-widget-copyright{line-height:1.5}
-.tvbox .tradingview-widget-copyright a{color:var(--tx3)}
+.mk-pop{position:absolute;z-index:60;width:340px;max-width:calc(100vw - 24px);background:var(--panel);color:var(--tx);border:1px solid var(--line2);
+  border-radius:12px;box-shadow:0 12px 32px rgba(10,20,40,.18);padding:14px 16px;font-size:13px;line-height:1.6}
+.mk-pop h4{margin:0 26px 6px 0;font-size:14.5px} .mk-pop h5{margin:10px 0 2px;font-size:12px;color:var(--tx3);font-weight:700}
+.mk-pop p{margin:0;color:var(--tx2)} .mk-pop table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:2px}
+.mk-pop td{padding:3px 6px;border-bottom:1px solid var(--line)} .mk-pop td:first-child{white-space:nowrap;color:var(--tx2);width:1%}
+.mk-pop .x{position:absolute;top:8px;right:10px;border:0;background:none;font-size:18px;color:var(--tx3);padding:2px 6px}
+.mk-pop .warn{margin-top:10px;font-size:11.5px;color:var(--tx3);border-top:1px solid var(--line);padding-top:8px}
 
 /* ── 툴바 ── */
 .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);
@@ -295,6 +325,8 @@ footer a{color:var(--tx3)}
   #mFilterBtn b:empty{display:none}
   #mSticky .breadth{margin:7px 0 0;height:5px}
   .brief{padding:9px 11px;gap:8px;margin-bottom:8px} .brief .txt{font-size:13px} .brief .tag{font-size:11.5px;padding:2px 8px}
+  .mk{padding:9px 11px;margin-bottom:8px} .mk-h .mk-note{display:none}
+  .mk-grid{grid-template-columns:1fr} .mk-pop{position:fixed;left:12px!important;right:12px;bottom:12px;top:auto!important;width:auto;max-height:70vh;overflow:auto}
   .brief:not(.fold){flex-wrap:wrap} .brief:not(.fold) .txt{order:3;flex-basis:100%} .brief:not(.fold) .tg{margin-left:auto}
   /* 요약 카드는 유형 칩 한 줄만 */
   .kpis{display:block;margin-bottom:8px} .kpis .kpi:not(:nth-child(4)){display:none}
@@ -391,7 +423,7 @@ footer a{color:var(--tx3)}
   <!-- 오늘의 요약 (공시 데이터로 자동 작성, 전망 없음) -->
   <div class="brief fold" id="brief" aria-live="polite">
     <span class="tag">오늘의 요약</span>
-    <div class="txt"><div id="briefTxt"></div><div class="tvbox" id="tvbox"></div></div>
+    <div class="txt" id="briefTxt"></div>
     <button class="tg" id="briefTg" aria-expanded="false">펼치기</button>
   </div>
 
@@ -417,6 +449,21 @@ footer a{color:var(--tx3)}
       <div class="types" id="kTypes"></div>
     </div>
   </div>
+
+  <!-- 시장 지표 (펀드 정보 보조) -->
+  <section class="mk fold" id="mk" aria-label="시장 지표">
+    <div class="mk-h">
+      <b>시장 지표</b><span class="mk-note">펀드 기준가와 시점이 다를 수 있으며 지표마다 기준일을 표시합니다</span>
+      <span class="sp"></span>
+      <button class="mk-btn" id="idxTg" aria-expanded="false">주요 지수 보기 ▾</button>
+      <button class="mk-btn" id="mkTg" aria-expanded="false">펼치기</button>
+      <div class="mk-sum" id="mkSum"></div>
+    </div>
+    <div class="mk-grid" id="mkGrid"></div>
+    <div class="mk-idx" id="idxBox" hidden></div>
+    <p class="mk-dis">구간 해석은 흔히 쓰이는 참고 기준일 뿐 절대적인 기준이 아니며, 앞으로의 방향을 알려 주지 않습니다. 투자 권유가 아닙니다.</p>
+  </section>
+  <div class="mk-pop" id="mkPop" role="dialog" aria-modal="false" hidden></div>
 
   <!-- 툴바 -->
   <span id="phBar"></span>
@@ -938,7 +985,8 @@ function renderAll(){
   $("segPeriod").innerHTML = PERIODS.map(p=>`<button data-v="${p}" aria-pressed="${p===S.period}" class="${hasP(p)?"":"nodata"}" title="${PLABEL[p]}${hasP(p)?"":" · 데이터 없음"}">${p}</button>`).join("");
   document.documentElement.dataset.theme = S.theme==="dark" ? "dark" : "light";
   NEU = PALS[S.theme==="dark"?"dark":"light"].neu;
-  if (tvLoaded && tvTheme!==S.theme && !$("brief").classList.contains("fold")) loadTV();   // 테마 바뀌면 위젯 색 다시
+  if (vixTheme && vixTheme!==S.theme) loadVix(true);                       // 테마 바뀌면 위젯 색 다시
+  if (idxTheme && idxTheme!==S.theme && !$("idxBox").hidden) loadIdx();
   ["segGroup","segRegion","segScale","segConv","segPal","segView","segSize","segTheme"].forEach((id,i)=>setSeg(id,[S.group,S.region,S.scale,S.conv,S.pal,S.view,S.size,S.theme][i]));
   $("segSize").style.display = $("sizeLbl").style.display = S.view==="map" ? "" : "none";
   $("scatter").style.display = S.view==="scatter" ? "block" : "none";
@@ -1032,46 +1080,154 @@ function marketHtml(){
   const it=MARKET.indices.map(m=>{ const d=new Date(m.date+"T00:00:00"); return `<span title="${esc(m.source||"")}">${esc(m.name)} <b class="num">${fmtN(m.close,2)}</b><b class="num" style="color:${txtColor(m.chg_pct)}">${fmt(m.chg_pct)}</b><small>${d.getMonth()+1}/${d.getDate()} 종가</small></span>`; }).join("");
   return `<div class="mkt">${it}</div><span class="note">지수: ${esc(MARKET.source_note||"")} · 지수 기준일은 펀드 기준일과 다를 수 있습니다</span>`;
 }
-// 주요 지수: TradingView 무료 위젯(표시 권한은 위젯 제공사). 외부 호출이므로 '펼치기'를 눌렀을 때만 불러옴
-const TV_ON = true;
-const TV_SYMBOLS = [   // 위젯 표시 가능 심볼(미국 지수는 지수 추종 CFD)
+// ═══════════════════ 시장 지표 · 주요 지수 ═══════════════════
+// 국고채·환율: 한국은행 ECOS (일 배치 → data/indicators.json)
+// VIX·주요 지수: TradingView 무료 위젯(표시 권한은 위젯 제공사, 지연 시세). VIX 는 Cboe 저작권 데이터라 직접 수집·재게시하지 않음
+let IND = null;
+const VIX_SYMBOL = "CAPITALCOM:VIX";   // 위젯 표시 가능 심볼 점검 후 확정
+const TV_SYMBOLS = [   // 미국 지수는 지수 추종 CFD
   {proName:"FOREXCOM:SPXUSD",  title:"S&P 500"},
   {proName:"FOREXCOM:NSXUSD",  title:"나스닥 100"},
   {proName:"FOREXCOM:DJI",     title:"다우존스"},
 ];
-// 코스피 장중 시세(KRX:KOSPI)는 위젯 표시가 허용되지 않음(2026-11-13 점검: '볼 수 없음', INDEX:KSIC 는 전일 종가만) → TradingView 페이지 링크로 제공
+// 코스피 장중 시세(KRX:KOSPI)는 위젯 표시 불가(2026-11-13 점검) → TradingView 페이지 링크
 const KOSPI_URL = "https://kr.tradingview.com/symbols/KRX-KOSPI/";
-let tvLoaded = false, tvTheme = null;
 function tvScript(src, cfg){
   const c=document.createElement("div"); c.className="tradingview-widget-container";
   c.innerHTML=`<div class="tradingview-widget-container__widget"></div>`;
   const sc=document.createElement("script"); sc.async=true; sc.type="text/javascript"; sc.src=src; sc.textContent=JSON.stringify(cfg);
   c.appendChild(sc); return c;
 }
-function loadTV(){
-  if (!TV_ON || (tvLoaded && tvTheme===S.theme)) return; tvLoaded = true; tvTheme = S.theme;
-  const theme = S.theme==="dark"?"dark":"light", narrow = innerWidth<=640;
-  const box=$("tvbox"); box.innerHTML="";
+const tvTheme=()=>S.theme==="dark"?"dark":"light";
+
+// 구간 정의(참고용 관행 기준)
+const BANDS = {
+  vix:  [{to:15,label:"매우 안정",lv:0},{to:20,label:"안정",lv:1},{to:30,label:"경계",lv:2},{to:Infinity,label:"불안",lv:3}],
+  rate: [{to:-5,label:"큰 폭 하락"},{to:-2,label:"하락"},{to:2,label:"보합"},{to:5,label:"상승"},{to:Infinity,label:"큰 폭 상승"}],
+  fx:   [{to:20,label:"1년 중 낮은 편"},{to:80,label:"1년 중 보통"},{to:Infinity,label:"1년 중 높은 편"}],
+};
+const bandOf=(k,v)=>BANDS[k].findIndex(b=>v<b.to||(b.to===Infinity));
+const mdate=d=>{ if(!d) return ""; const t=new Date(d+"T00:00:00"); return `${t.getMonth()+1}/${t.getDate()}`; };
+const bar=(n,on)=>`<div class="mk-bar">${Array.from({length:n},(_,i)=>`<i class="${i===on?"on":""}"></i>`).join("")}</div>`;
+
+const HELP = {
+  vix: {t:"VIX (변동성 지수)",
+    what:"미국 S&P 500 지수 옵션 가격으로 계산한 '앞으로 30일 동안 예상되는 주가 변동 폭'입니다. 시장이 불안할수록 높아져 흔히 '공포지수'라고 부릅니다.",
+    read:[["15 미만","매우 안정"],["15~20","안정"],["20~30","경계 (변동성 확대)"],["30 이상","불안 (공포 국면)"]],
+    use:"VIX가 높은 시기에는 해외주식형(특히 미국 투자) 펀드 기준가의 하루 등락 폭이 커지는 경향이 있고, 국내 주식형도 함께 흔들리는 경우가 많습니다. 주가가 오를지 내릴지가 아니라 '얼마나 흔들릴 것으로 보는지'를 나타냅니다.",
+    src:"산출 Cboe · 표시 TradingView 위젯(지연 시세, 실제 지수를 따르는 CFD 시세일 수 있음)"},
+  rate: {t:"국고채 금리 (3년·10년)",
+    what:"정부가 발행한 채권이 시장에서 거래되는 금리입니다. 3년물은 기준금리 전망 등 단기 금리를, 10년물은 장기 성장·물가 기대를 주로 반영합니다.",
+    read:[["−5bp 이하","큰 폭 하락"],["−5~−2bp","하락"],["±2bp 미만","보합"],["+2~+5bp","상승"],["+5bp 이상","큰 폭 상승"]],
+    readNote:"전 영업일 대비 3년물 변화 기준. 1bp = 0.01%p",
+    use:"금리가 오르면 이미 가진 채권의 가격이 내려가 채권형·채권혼합형 펀드 기준가에 하락 요인이 되고, 금리가 내리면 상승 요인이 됩니다. 만기가 긴 채권을 많이 담은 펀드일수록 영향이 큽니다.",
+    src:"한국은행 경제통계시스템(ECOS) 시장금리(일별)"},
+  fx: {t:"원/달러 환율",
+    what:"1달러를 사는 데 필요한 원화 금액(매매기준율)입니다. 숫자가 커지면 원화 가치가 내려간(원화 약세) 것입니다.",
+    read:[["범위 하단 20%","1년 중 낮은 편 (원화 강세)"],["20~80%","1년 중 보통"],["범위 상단 20%","1년 중 높은 편 (원화 약세)"]],
+    readNote:"최근 1년 최저~최고 범위에서 현재 값의 위치 기준",
+    use:"환헤지를 하지 않는 해외투자 펀드는 환율이 오르면(원화 약세) 원화로 환산한 수익률에 플러스, 내리면 마이너스 요인이 됩니다. 환헤지형 펀드는 영향이 작습니다. 펀드별 환헤지 여부는 보험사 공시의 운용설명서에서 확인할 수 있습니다.",
+    src:"한국은행 경제통계시스템(ECOS) 주요국 통화의 대원화 환율(매매기준율)"},
+};
+function helpHtml(k){
+  const h=HELP[k];
+  return `<button class="x" aria-label="닫기" data-close>×</button><h4>${h.t}</h4>
+    <h5>무엇인가요</h5><p>${h.what}</p>
+    <h5>구간 읽는 법</h5><table>${h.read.map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</table>${h.readNote?`<p style="font-size:11.5px;color:var(--tx3);margin-top:3px">${h.readNote}</p>`:""}
+    <h5>변액펀드와의 관계</h5><p>${h.use}</p>
+    <p class="warn">구간은 흔히 쓰이는 참고 기준일 뿐 절대적인 기준이 아니며, 시장 상황에 따라 해석이 달라질 수 있습니다. 출처: ${h.src}</p>`;
+}
+let popFor=null;
+function openPop(k, btn){
+  const P=$("mkPop");
+  if (popFor===k && !P.hidden){ closePop(); return; }
+  P.innerHTML=helpHtml(k); P.hidden=false; popFor=k;
+  if (!MQ.matches){
+    const r=btn.getBoundingClientRect(), w=P.offsetWidth;
+    P.style.left=Math.max(12, Math.min(r.left+scrollX-20, scrollX+innerWidth-w-12))+"px";
+    P.style.top=(r.bottom+scrollY+6)+"px";
+  }
+  P.querySelector("[data-close]").focus();
+}
+function closePop(){ $("mkPop").hidden=true; popFor=null; }
+document.addEventListener("click",e=>{
+  const q=e.target.closest(".mk-q"); if(q){ e.stopPropagation(); openPop(q.dataset.k,q); return; }
+  if (e.target.closest("[data-close]")){ closePop(); return; }
+  if (!e.target.closest("#mkPop") && !$("mkPop").hidden) closePop();
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("mkPop").hidden) closePop(); });
+
+function renderMarket(){
+  const it=(IND&&IND.items)||{}, r3=it.kr3y, r10=it.kr10y, fx=it.usdkrw;
+  const sgn=v=>(v>0?"+":v<0?"−":"±")+Math.abs(v);
+  const q=k=>`<button class="mk-q" data-k="${k}" aria-label="${HELP[k].t} 설명 보기">?</button>`;
+  const lbg=(labels,on)=>`<div class="mk-lbg" style="grid-template-columns:repeat(${labels.length},1fr)">${labels.map((l,i)=>`<span class="${i===on?"on":""}">${l}</span>`).join("")}</div>`;
+  // 국고채 (3년 전일 대비 변화로 구간)
+  let rateT=`<div class="mk-t"><div class="r"><span class="nm">국고채 금리 ${q("rate")}</span>${r3?`<span class="dt">${mdate(r3.date)} · 한국은행</span>`:""}</div>`;
+  if (r3){
+    const bi=bandOf("rate", r3.chg_bp);
+    rateT+=`<div class="val"><b class="num">${r3.value.toFixed(3)}%</b><span class="num">3년 ${sgn(r3.chg_bp)}bp</span>${r10?`<span class="num">· 10년 ${r10.value.toFixed(3)}% (${sgn(r10.chg_bp)}bp)</span>`:""}</div>
+      <div class="r"><span class="mk-chip">${BANDS.rate[bi].label}${bi>2?" · 채권 가격엔 하락 요인":bi<2?" · 채권 가격엔 상승 요인":""}</span></div>
+      ${bar(5,bi)}${lbg(["큰 폭↓","하락","보합","상승","큰 폭↑"],bi)}`;
+  } else rateT+=`<div class="sub">데이터 준비 중입니다.</div>`;
+  rateT+=`</div>`;
+  // 환율 (1년 최저~최고 범위에서 현재 위치로 구간)
+  let fxT=`<div class="mk-t"><div class="r"><span class="nm">원/달러 환율 ${q("fx")}</span>${fx?`<span class="dt">${mdate(fx.date)} · 한국은행</span>`:""}</div>`;
+  if (fx){
+    const pos=fx.max_1y>fx.min_1y?(fx.value-fx.min_1y)/(fx.max_1y-fx.min_1y)*100:50, bi=bandOf("fx", pos);
+    fxT+=`<div class="val"><b class="num">${fmtN(fx.value,2)}원</b><span class="num">전일 대비 ${fx.chg>0?"+":fx.chg<0?"−":"±"}${Math.abs(fx.chg).toFixed(2)}</span></div>
+      <div class="r"><span class="mk-chip">${BANDS.fx[bi].label}${bi===0?" (원화 강세)":bi===2?" (원화 약세)":""}</span></div>
+      <div class="mk-bar"><i></i><u style="left:${Math.max(1,Math.min(99,pos))}%"></u></div>
+      <div class="mk-lb num"><span>1년 최저 ${fmtN(fx.min_1y,0)}</span><span>1년 최고 ${fmtN(fx.max_1y,0)}</span></div>`;
+  } else fxT+=`<div class="sub">데이터 준비 중입니다.</div>`;
+  fxT+=`</div>`;
+  // VIX (위젯 값 + 구간 눈금. 값은 위젯에서만 표시)
+  const vixT=`<div class="mk-t"><div class="r"><span class="nm">VIX 변동성 지수 ${q("vix")}</span><span class="dt">TradingView 지연</span></div><div class="tvq" id="vixW"></div>
+      ${bar(4,-1)}${lbg(["~15 매우 안정","15~20 안정","20~30 경계","30~ 불안"],-1)}</div>`;
+  $("mkGrid").innerHTML=rateT+fxT+vixT;
+  $("mkSum").innerHTML=[r3?`국고채 3년 <b class="num">${r3.value.toFixed(2)}%</b> (${sgn(r3.chg_bp)}bp)`:"", fx?`원/달러 <b class="num">${fmtN(fx.value,1)}</b>`:"", "VIX · 주요 지수"].filter(Boolean).join(" · ");
+  loadVix(true);
+}
+let vixTheme=null;
+function loadVix(force){
+  const el=$("vixW"); if(!el) return;
+  if (!force && vixTheme===S.theme && el.childElementCount) return; vixTheme=S.theme;
+  if ($("mk").classList.contains("fold")) { vixTheme=null; return; }   // 접힘 상태에선 외부 호출 안 함
+  el.innerHTML=""; el.appendChild(tvScript("https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js",
+    {symbol:VIX_SYMBOL, width:"100%", isTransparent:true, colorTheme:tvTheme(), locale:"kr"}));
+}
+let idxTheme=null;
+function loadIdx(){
+  if (idxTheme===S.theme) return; idxTheme=S.theme;
+  const box=$("idxBox"); box.innerHTML="";
   const k=document.createElement("a"); k.className="kospiLink"; k.href=KOSPI_URL; k.target="_blank"; k.rel="noopener nofollow";
   k.innerHTML=`<b>코스피</b> 장중 시세 보기 <span aria-hidden="true">↗</span><small>TradingView 페이지로 이동 (위젯 표시 미제공)</small>`;
   box.appendChild(k);
-  if (narrow){
-    // 모바일: 한 줄 흐르는 띠 → 좁은 칸에서 숫자 잘림 방지
+  if (MQ.matches){
     box.appendChild(tvScript("https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js",
-      {symbols:TV_SYMBOLS, showSymbolLogo:true, isTransparent:true, displayMode:"adaptive", colorTheme:theme, locale:"kr"}));
+      {symbols:TV_SYMBOLS, showSymbolLogo:true, isTransparent:true, displayMode:"adaptive", colorTheme:tvTheme(), locale:"kr"}));
   } else {
     const g=document.createElement("div"); g.className="tvgrid"; box.appendChild(g);
     TV_SYMBOLS.forEach(({proName})=>g.appendChild(tvScript("https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js",
-      {symbol:proName, width:"100%", isTransparent:true, colorTheme:theme, locale:"kr"})));
+      {symbol:proName, width:"100%", isTransparent:true, colorTheme:tvTheme(), locale:"kr"})));
   }
   const cp=document.createElement("div"); cp.className="tradingview-widget-copyright";
   cp.innerHTML=`<a href="https://www.tradingview.com/markets/" rel="noopener nofollow" target="_blank">World markets</a> by TradingView · 지연 시세 · 미국 지수는 지수 추종 CFD 시세로 실제 지수와 소폭 다를 수 있음 · 펀드 기준일과 시점이 다름`;
   box.appendChild(cp);
 }
-function renderBrief(){
-  $("briefTxt").innerHTML = briefText() + `<span class="note">공시 기준가로 자동 작성한 과거 실적 요약이며, 향후 전망이나 투자 권유가 아닙니다.</span>` + (TV_ON ? "" : marketHtml());
+$("idxTg").onclick=()=>{ const b=$("idxTg"), open=b.getAttribute("aria-expanded")!=="true";
+  b.setAttribute("aria-expanded",open); b.textContent=open?"주요 지수 닫기 ▴":"주요 지수 보기 ▾"; $("idxBox").hidden=!open; if(open) loadIdx(); };
+function setMkFold(f, save){
+  $("mk").classList.toggle("fold", f); $("mkTg").textContent=f?"펼치기":"접기"; $("mkTg").setAttribute("aria-expanded",!f);
+  if (!f) loadVix(); if (save) try{ localStorage.setItem("vah_mkFold", f?"1":"0"); }catch(_){}
 }
-$("briefTg").onclick=()=>{ const f=$("brief").classList.toggle("fold"); $("briefTg").textContent=f?"펼치기":"접기"; $("briefTg").setAttribute("aria-expanded",!f); if(!f) loadTV(); };
+$("mkTg").onclick=()=>setMkFold(!$("mk").classList.contains("fold"), true);
+(function(){ let v=null; try{ v=localStorage.getItem("vah_mkFold"); }catch(_){} setMkFold(v!==null ? v==="1" : MQ.matches, false); })();
+
+function renderBrief(){
+  $("briefTxt").innerHTML = briefText() + `<span class="note">공시 기준가로 자동 작성한 과거 실적 요약이며, 향후 전망이나 투자 권유가 아닙니다.</span>`;
+}
+$("briefTg").onclick=()=>{ const f=$("brief").classList.toggle("fold"); $("briefTg").textContent=f?"펼치기":"접기"; $("briefTg").setAttribute("aria-expanded",!f); };
 
 // ═══════════════════ 관리자 권한요청 (운영계 서버 기능이 있을 때만 링크 표시) ═══════════════════
 fetch("/api/health",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(h=>{ if(h&&h.ok&&h.stage==="production") $("reqWrap").hidden=false; }).catch(()=>{});
@@ -1102,7 +1258,8 @@ async function boot(){
   } catch(_){ DATA=MOCK; IS_MOCK=true; }
   DATA.byId=new Map(DATA.funds.map(f=>[f.fund_id,f]));
   computeRanks();
-  try { const r=await fetch("data/market.json",{cache:"no-cache"}); if(r.ok) MARKET=await r.json(); } catch(_){}
+  try { const r=await fetch("data/indicators.json",{cache:"no-cache"}); if(r.ok) IND=await r.json(); } catch(_){}
+  try { renderMarket(); } catch(e){ console.warn("시장 지표", e); }
   $("mockBadge").style.display = IS_MOCK ? "" : "none";
   const bd=new Date(DATA.base_date+"T00:00:00+09:00");
   $("baseDate").textContent = DATA.base_date + " ("+"일월화수목금토"[bd.getDay()]+")";

@@ -21,6 +21,11 @@ export async function onRequest(ctx) {
     if (path.startsWith("/api/") || path.startsWith("/data/")) return new Response("로그인 필요", { status: 401 });
     return Response.redirect(new URL(`/admin/login?next=${encodeURIComponent(path)}`, request.url).toString(), 302);
   }
+  // 임시 접속코드로 들어온 경우: 본인 비밀번호를 정하기 전에는 비밀번호 화면만
+  if (me.must_change && !["/admin/password", "/admin/admin.css", "/api/password", "/api/logout", "/api/me"].includes(path.replace(/\.html$/, ""))) {
+    if (path.startsWith("/api/") || path.startsWith("/data/")) return new Response("비밀번호 설정 필요", { status: 403 });
+    return Response.redirect(new URL("/admin/password", request.url).toString(), 302);
+  }
   const res = await next();
   const type = res.headers.get("content-type") || "";
   if (!(path === "/" || path === "/index.html") || !type.includes("text/html")) {

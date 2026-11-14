@@ -20,3 +20,4 @@ th{color:#6A7690;font-weight:600;font-size:12px} td .btns{display:flex;gap:6px;f
 .tag.rejected,.tag.revoked{background:#FCE9E9;color:#B42318} .tag.master{background:#1F4FD8;color:#fff}
 .tablewrap{overflow-x:auto}
 dialog{border:0;border-radius:12px;padding:20px;max-width:420px;width:calc(100% - 32px)} dialog::backdrop{background:rgba(10,20,40,.4)}
+[hidden]{display:none!important}

@@ -10,7 +10,7 @@
   <label>이름<input name="name" required maxlength="20"></label>
   <button type="submit">지정</button>
   <p class="err" id="err"></p>
-  <div id="ok" hidden><p>지정되었습니다. 아래 <b>접속코드</b>를 안전한 곳에 보관하세요. 다시 볼 수 없습니다.</p><p class="code" id="code"></p><a href="/admin/login">로그인하러 가기</a></div>
+  <div id="ok" hidden><p>지정되었습니다. 아래 <b>임시 접속코드</b>로 로그인하면 본인 비밀번호를 정하게 됩니다. 다시 볼 수 없으니 바로 로그인하세요.</p><p class="code" id="code"></p><a href="/admin/login">로그인하러 가기</a></div>
 </form>
 <script>
 f.onsubmit=async e=>{e.preventDefault(); err.textContent="";

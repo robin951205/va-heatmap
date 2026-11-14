@@ -4,7 +4,7 @@
 <div class="wrap">
   <div class="top">
     <h1>관리자 권한 관리</h1><span class="tag" id="meTag"></span><span class="sp"></span>
-    <a href="/">← 검증계 화면</a><a href="#" id="out">로그아웃</a>
+    <a href="/">← 검증계 화면</a><a href="/admin/password">비밀번호 변경</a><a href="#" id="out">로그아웃</a>
   </div>
 
   <section class="card" id="noMaster" hidden>
@@ -27,7 +27,7 @@
       <p class="muted small">활성 일반관리자 중 한 명에게 인계합니다. 인계 후 본인은 일반관리자가 됩니다.</p>
       <form id="tf" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <select name="empno" id="tfSel" style="max-width:260px"></select>
-        <input name="code" placeholder="본인 접속코드 재입력" required style="max-width:220px">
+        <input name="code" type="password" placeholder="본인 비밀번호 재입력" required style="max-width:220px" autocomplete="current-password">
         <button>인계</button>
       </form>
     </section>
@@ -64,17 +64,17 @@ async function load(){
       :`<button class="sub" data-a="del" data-id="${r.id}">기록 삭제</button>`}</div></td></tr>`).join("")||`<tr><td colspan="6" class="muted">신청 내역이 없습니다.</td></tr>`;
   $("users").innerHTML=us.users.map(u=>`<tr><td><span class="tag ${u.role==="master"?"master":""}">${u.role==="master"?"마스터":"일반"}</span></td><td>${esc(u.org)}</td><td>${esc(u.empno)}</td><td>${esc(u.name)}</td>
     <td><span class="tag ${u.status}">${ST[u.status]}</span></td><td>${day(u.created_at)}</td>
-    <td><div class="btns">${u.status==="active"?`<button class="sub" data-a="reset" data-e="${esc(u.empno)}">코드 재발급</button>`:""}${u.role!=="master"&&u.status==="active"?`<button class="danger" data-a="revoke" data-e="${esc(u.empno)}">권한 해제</button>`:""}</div></td></tr>`).join("");
+    <td><div class="btns">${u.status==="active"?`<button class="sub" data-a="reset" data-e="${esc(u.empno)}">비밀번호 초기화</button>`:""}${u.role!=="master"&&u.status==="active"?`<button class="danger" data-a="revoke" data-e="${esc(u.empno)}">권한 해제</button>`:""}</div></td></tr>`).join("");
   const cands=us.users.filter(u=>u.role==="admin"&&u.status==="active");
   $("tfSel").innerHTML=cands.length?cands.map(u=>`<option value="${esc(u.empno)}">${esc(u.name)} (${esc(u.org)} · ${esc(u.empno)})</option>`).join(""):`<option value="">인계 가능한 일반관리자 없음</option>`;
   $("aud").innerHTML=au.audit.map(a=>`<tr><td>${day(a.at)}</td><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="muted small">${esc(a.detail)}</td></tr>`).join("");
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button[data-a]"); if(!b) return; const a=b.dataset.a; let d;
-  if(a==="ok"){ if(!confirm("승인하면 접속코드가 발급됩니다. 승인할까요?")) return; d=await api("admin/decide",{id:+b.dataset.id,approve:true}); if(d.ok) show("승인 완료",d.message,d.code); }
+  if(a==="ok"){ if(!confirm("승인하면 임시 접속코드가 발급됩니다. 승인할까요?")) return; d=await api("admin/decide",{id:+b.dataset.id,approve:true}); if(d.ok) show("승인 완료",d.message,d.code); }
   if(a==="no"){ const note=prompt("반려 사유 (선택)",""); if(note===null) return; d=await api("admin/decide",{id:+b.dataset.id,approve:false,note}); }
   if(a==="del"){ if(!confirm("이 신청 기록(소속·사번·이름)을 삭제할까요?")) return; d=await api("admin/delete-request",{id:+b.dataset.id}); }
-  if(a==="reset"){ if(!confirm("새 접속코드를 발급하면 기존 코드는 즉시 사용할 수 없습니다. 진행할까요?")) return; d=await api("admin/reset-code",{empno:b.dataset.e}); if(d.ok) show("접속코드 재발급","본인에게 직접 전달하세요. 이 창을 닫으면 다시 볼 수 없습니다.",d.code); }
+  if(a==="reset"){ if(!confirm("비밀번호를 초기화하고 임시 접속코드를 발급합니다. 기존 비밀번호는 즉시 사용할 수 없습니다. 진행할까요?")) return; d=await api("admin/reset-code",{empno:b.dataset.e}); if(d.ok) show("비밀번호 초기화","아래 임시 접속코드를 본인에게 직접 전달하세요. 다음 로그인 때 새 비밀번호를 정합니다. 이 창을 닫으면 다시 볼 수 없습니다.",d.code); }
   if(a==="revoke"){ if(!confirm("관리자 권한을 해제할까요?")) return; d=await api("admin/revoke",{empno:b.dataset.e}); }
   if(d&&!d.ok) alert(d.error); load();
 });

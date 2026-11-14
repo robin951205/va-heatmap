@@ -4,7 +4,7 @@
 //  관리자: GET me · POST logout · GET diff · POST promote(이관)
 //  마스터: GET admin/requests · POST admin/decide · GET admin/users · POST admin/revoke · POST admin/reset-code
 //          POST admin/transfer(마스터 인계) · GET admin/audit · POST admin/delete-request
-import { isProd, json, db, sha256, randomHex, newAccessCode, normCode, nowIso, audit, currentAdmin, COOKIE, purgeExpired, RETENTION_YEARS } from "../_shared.js";
+import { isProd, json, db, sha256, randomHex, newAccessCode, normCode, nowIso, audit, currentAdmin, COOKIE, purgeExpired, RETENTION_YEARS, pwHash, pwRuleError, checkSecret, PW_ITER } from "../_shared.js";
 
 const SESSION_H = 12;
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
@@ -34,6 +34,7 @@ export async function onRequest(ctx) {
     if (!me) return json({ error: "로그인 필요" }, 401);
     if (route === "me") return json({ admin: me });
     if (route === "logout" && m === "POST") return await logout(env, request);
+    if (route === "password" && m === "POST") return await setPassword(env, request, me, body);
     if (route === "diff") return await diff(env);
     if (route === "promote" && m === "POST") return await promote(env, me);
 
@@ -81,7 +82,7 @@ async function requestAdmin(env, request, b) {
   if (await D.prepare("SELECT 1 FROM requests WHERE empno=? AND status='pending'").bind(empno).first()) return json({ error: "이미 접수된 신청이 있습니다. 승인을 기다려 주세요." }, 409);
   await D.prepare("INSERT INTO requests(empno,name,org,status,created_at,ip_hash) VALUES(?,?,?,'pending',?,?)").bind(empno, name, org, nowIso(), ip).run();
   await audit(env, empno, "권한요청 접수", { org, name });
-  return json({ ok: true, message: "신청이 접수되었습니다. 마스터 관리자 승인 후 접속코드를 전달받습니다." });
+  return json({ ok: true, message: "신청이 접수되었습니다. 마스터 관리자 승인 후 임시 접속코드를 전달받아 첫 로그인 때 본인 비밀번호를 정합니다." });
 }
 
 // ── 최초 마스터 지정 (마스터가 없을 때 1회, SETUP_KEY 필요) ──
@@ -100,12 +101,12 @@ async function putAdmin(D, { empno, name, org, role, by }) {
   const code = newAccessCode(), salt = randomHex(16);
   await D.prepare(`INSERT INTO admins(empno,name,org,role,status,code_hash,code_salt,created_at,approved_by) VALUES(?,?,?,?,'active',?,?,?,?)
       ON CONFLICT(empno) DO UPDATE SET name=excluded.name, org=excluded.org, role=excluded.role, status='active', revoked_at=NULL,
-      code_hash=excluded.code_hash, code_salt=excluded.code_salt, approved_by=excluded.approved_by`)
+      code_hash=excluded.code_hash, code_salt=excluded.code_salt, approved_by=excluded.approved_by, pw_hash=NULL, pw_salt=NULL, must_change=1`)
     .bind(empno, name, org, role, await sha256(salt + normCode(code)), salt, nowIso(), by).run();
   return code;
 }
 
-// ── 로그인 (사번 + 접속코드) ──
+// ── 로그인 (사번 + 비밀번호, 처음엔 임시 접속코드) ──
 async function login(env, request, b) {
   const D = await db(env), empno = clean(b.empno, 20).toUpperCase(), ipk = "ip:" + (request.headers.get("cf-connecting-ip") || "");
   const since = Date.now() - 15 * 60e3;
@@ -113,15 +114,35 @@ async function login(env, request, b) {
   const f = await D.prepare("SELECT COUNT(*) n FROM fails WHERE k IN (?,?)").bind("emp:" + empno, ipk).first();
   if (f.n >= 8) return json({ error: "로그인 시도가 많습니다. 15분 후 다시 시도해 주세요." }, 429);
   const a = await D.prepare("SELECT * FROM admins WHERE empno=? AND status='active'").bind(empno).first();
-  if (!a || (await sha256(a.code_salt + normCode(b.code))) !== a.code_hash) {
+  const kind = await checkSecret(a, String(b.password ?? b.code ?? ""));
+  if (!kind) {
     await D.batch([D.prepare("INSERT INTO fails VALUES(?,?)").bind("emp:" + empno, Date.now()), D.prepare("INSERT INTO fails VALUES(?,?)").bind(ipk, Date.now())]);
-    return json({ error: "사번 또는 접속코드가 맞지 않습니다." }, 401);
+    return json({ error: "사번 또는 비밀번호가 맞지 않습니다." }, 401);
   }
+  if (kind === "code") await D.prepare("UPDATE admins SET must_change=1 WHERE empno=?").bind(empno).run();
   const tok = randomHex(32);
   await D.prepare("DELETE FROM sessions WHERE expires_at<?").bind(Date.now()).run();
   await D.prepare("INSERT INTO sessions VALUES(?,?,?)").bind(await sha256(tok), empno, Date.now() + SESSION_H * 3600e3).run();
-  await audit(env, empno, "로그인", "");
-  return json({ ok: true }, 200, { "set-cookie": `${COOKIE}=${tok}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_H * 3600}` });
+  await audit(env, empno, kind === "code" ? "로그인(임시 접속코드)" : "로그인", "");
+  return json({ ok: true, must_change: kind === "code" }, 200, { "set-cookie": `${COOKIE}=${tok}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_H * 3600}` });
+}
+
+// ── 비밀번호 설정·변경 (현재 비밀번호 또는 임시 접속코드 확인) ──
+async function setPassword(env, request, me, b) {
+  const D = await db(env), a = await D.prepare("SELECT * FROM admins WHERE empno=?").bind(me.empno).first();
+  // 처음 설정(임시 접속코드로 로그인한 세션)은 로그인 자체가 본인 확인 → 현재 비밀번호 생략. 변경일 때만 현재 비밀번호 확인
+  if (!me.must_change && (await checkSecret(a, String(b.current || ""))) !== "pw") return json({ error: "현재 비밀번호가 맞지 않습니다." }, 401);
+  const err = pwRuleError(b.password, me.empno);
+  if (err) return json({ error: err }, 400);
+  const salt = randomHex(16);
+  const tok = (request.headers.get("cookie") || "").match(new RegExp(`${COOKIE}=([^;]+)`))?.[1] || "";
+  await D.batch([
+    D.prepare("UPDATE admins SET pw_hash=?, pw_salt=?, pw_iter=?, must_change=0, code_hash=NULL, code_salt=NULL WHERE empno=?")
+      .bind(await pwHash(b.password, salt, PW_ITER), salt, PW_ITER, me.empno),
+    D.prepare("DELETE FROM sessions WHERE empno=? AND token_hash!=?").bind(me.empno, await sha256(tok)),   // 다른 기기 로그인 해제
+  ]);
+  await audit(env, me.empno, "비밀번호 설정", "");
+  return json({ ok: true, message: "비밀번호를 저장했습니다. 다음부터 사번과 이 비밀번호로 로그인하세요." });
 }
 
 async function logout(env, request) {
@@ -139,7 +160,7 @@ async function decide(env, me, b) {
     const code = await putAdmin(D, { empno: r.empno, name: r.name, org: r.org, role: "admin", by: me.empno });
     await D.prepare("UPDATE requests SET status='approved', note=?, decided_at=?, decided_by=? WHERE id=?").bind(note, nowIso(), me.empno, r.id).run();
     await audit(env, me.empno, "권한요청 승인", { empno: r.empno, name: r.name });
-    return json({ ok: true, code, message: `${r.name}(${r.empno}) 승인. 접속코드를 본인에게 직접 전달하세요. 이 화면을 닫으면 다시 볼 수 없습니다.` });
+    return json({ ok: true, code, message: `${r.name}(${r.empno}) 승인. 아래 임시 접속코드를 본인에게 직접 전달하세요. 첫 로그인 때 본인 비밀번호를 정하며, 이 화면을 닫으면 다시 볼 수 없습니다.` });
   }
   await D.prepare("UPDATE requests SET status='rejected', note=?, decided_at=?, decided_by=? WHERE id=?").bind(note, nowIso(), me.empno, r.id).run();
   await audit(env, me.empno, "권한요청 반려", { empno: r.empno, name: r.name, note });
@@ -161,15 +182,15 @@ async function resetCode(env, me, b) {
   if (!a) return json({ error: "활성 관리자가 아닙니다." }, 404);
   const code = await putAdmin(D, { empno, name: a.name, org: a.org, role: a.role, by: a.approved_by });
   await D.prepare("DELETE FROM sessions WHERE empno=?").bind(empno).run();
-  await audit(env, me.empno, "접속코드 재발급", { empno });
+  await audit(env, me.empno, "비밀번호 초기화(임시 접속코드 발급)", { empno });
   return json({ ok: true, code });
 }
 
-// ── 마스터 인계: 본인 접속코드 재확인 후, 대상(활성 일반관리자)을 마스터로, 본인은 일반관리자로 ──
+// ── 마스터 인계: 본인 비밀번호 재확인 후, 대상(활성 일반관리자)을 마스터로, 본인은 일반관리자로 ──
 async function transfer(env, me, b) {
   const D = await db(env), to = clean(b.empno, 20).toUpperCase();
   const self = await D.prepare("SELECT * FROM admins WHERE empno=?").bind(me.empno).first();
-  if ((await sha256(self.code_salt + normCode(b.code))) !== self.code_hash) return json({ error: "본인 접속코드가 맞지 않습니다." }, 401);
+  if ((await checkSecret(self, String(b.code || b.password || ""))) !== "pw") return json({ error: "본인 비밀번호가 맞지 않습니다." }, 401);
   const t = await D.prepare("SELECT * FROM admins WHERE empno=? AND status='active' AND role='admin'").bind(to).first();
   if (!t) return json({ error: "인계 대상은 활성 일반관리자여야 합니다." }, 400);
   await D.batch([D.prepare("UPDATE admins SET role='master' WHERE empno=?").bind(to), D.prepare("UPDATE admins SET role='admin' WHERE empno=?").bind(me.empno)]);

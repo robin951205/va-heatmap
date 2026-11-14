@@ -43,7 +43,8 @@ export async function db(env) {
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS fails(k TEXT, at INTEGER)`),
     ]);
     // 해제일 컬럼(보관기간 계산용). 이미 있으면 오류 → 무시
-    try { await env.DB.prepare("ALTER TABLE admins ADD COLUMN revoked_at TEXT").run(); } catch (_) {}
+    for (const c of ["revoked_at TEXT", "pw_hash TEXT", "pw_salt TEXT", "pw_iter INTEGER", "must_change INTEGER DEFAULT 1"])
+      try { await env.DB.prepare(`ALTER TABLE admins ADD COLUMN ${c}`).run(); } catch (_) {}   // 이미 있으면 무시
     ready = true;
   }
   return env.DB;
@@ -66,7 +67,7 @@ export async function currentAdmin(env, request) {
   const tok = cookieVal(request, COOKIE);
   if (!tok || !env.DB) return null;
   const D = await db(env);
-  const row = await D.prepare(`SELECT a.empno,a.name,a.org,a.role FROM sessions s JOIN admins a ON a.empno=s.empno
+  const row = await D.prepare(`SELECT a.empno,a.name,a.org,a.role,COALESCE(a.must_change,1) AS must_change FROM sessions s JOIN admins a ON a.empno=s.empno
       WHERE s.token_hash=? AND s.expires_at>? AND a.status='active'`).bind(await sha256(tok), Date.now()).first();
   return row || null;
 }
@@ -86,4 +87,26 @@ export async function purgeExpired(env) {
   const n = r.reduce((a, x) => a + (x.meta?.changes || 0), 0);
   if (n) await audit(env, "system", "보관기간 경과 파기", { rows: n, before: cut.slice(0, 10) });
   return n;
+}
+
+/** 비밀번호: PBKDF2-SHA256 (Workers CPU 한도 고려해 반복 횟수는 사용자별로 저장 → 나중에 올릴 수 있음) */
+export const PW_ITER = 20000;
+export async function pwHash(pw, salt, iter = PW_ITER) {
+  const key = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(salt), iterations: iter }, key, 256);
+  return [...new Uint8Array(bits)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+/** 새 비밀번호 규칙: 10자 이상, 영문·숫자 포함, 사번과 다름 */
+export function pwRuleError(pw, empno) {
+  if (typeof pw !== "string" || pw.length < 10 || pw.length > 64) return "비밀번호는 10자 이상 64자 이하로 정해 주세요.";
+  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "비밀번호에 영문과 숫자를 모두 넣어 주세요.";
+  if (pw.toUpperCase().includes(String(empno).toUpperCase())) return "비밀번호에 사번을 넣을 수 없습니다.";
+  return null;
+}
+/** 비밀번호 또는 (비밀번호 설정 전이면) 임시 접속코드 확인 → "pw" | "code" | null */
+export async function checkSecret(a, secret) {
+  if (!a || !secret) return null;
+  if (a.pw_hash && (await pwHash(secret, a.pw_salt, a.pw_iter || PW_ITER)) === a.pw_hash) return "pw";
+  if (a.code_hash && (a.must_change ?? 1) && (await sha256(a.code_salt + normCode(secret))) === a.code_hash) return "code";
+  return null;
 }

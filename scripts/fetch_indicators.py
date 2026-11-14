@@ -6,7 +6,8 @@
 
 - 국고채 3년·10년 금리: 한국은행 ECOS 817Y002(시장금리, 일별) 010200000 / 010210000
 - 원/달러 환율(매매기준율): 한국은행 ECOS 731Y001(주요국 통화의 대원화환율, 일별) 0000001
-- VIX 는 Cboe 저작권 데이터(재배포 허가 필요)라 직접 수집하지 않음 → 화면에서 TradingView 위젯으로 표시
+- VIX: 숫자는 화면에서 TradingView 위젯으로 표시. Cboe 저작권 데이터(재배포 허가 필요)라
+  여기서는 FRED(VIXCLS) 전일 종가로 '구간'만 계산해 저장하고 숫자는 저장·게시하지 않음
 
 키가 없거나 실패하면 기존 indicators.json 은 그대로 두고 data/indicators_status.json 에 사유만 기록.
 """
@@ -47,6 +48,22 @@ def ecos(stat, item, start, end):
     return rows
 
 
+VIX_BANDS = [15, 20, 30]   # 매우 안정 / 안정 / 경계 / 불안 (화면 BANDS.vix 와 동일)
+
+
+def vix_band():
+    """FRED VIXCLS 최근 종가 → 구간 번호(0~3)와 날짜. 값은 반환하지 않음"""
+    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS", timeout=40,
+                     headers={"user-agent": "va-heatmap-batch"})
+    r.raise_for_status()
+    rows = [ln.split(",") for ln in r.text.strip().splitlines()[1:]]
+    rows = [(d, float(v)) for d, v in rows if v not in (".", "")]
+    if not rows:
+        raise RuntimeError("VIXCLS 데이터 없음")
+    d, v = rows[-1]
+    return {"date": d, "band": sum(v >= b for b in VIX_BANDS), "source": "Cboe(FRED VIXCLS) 전일 종가 기준 구간"}
+
+
 def iso(t):
     return f"{t[:4]}-{t[4:6]}-{t[6:8]}"
 
@@ -77,6 +94,10 @@ def main():
         else:
             it["chg_bp"] = round((v1 - v0) * 100, 1)   # %p → bp
         out["items"][k] = it
+    try:
+        out["vix_band"] = vix_band()
+    except Exception as e:
+        errs.append(f"VIX 구간: {str(e)[:200]}")
     if not out["items"]:
         status("실패: " + " / ".join(errs))
         return

@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>금리·환율 위젯 심볼 점검 (검증계)</title><link rel="stylesheet" href="/admin/admin.css"></head><body>
+<div class="wrap"><h1>금리·환율 위젯 심볼 점검</h1>
+<p class="muted">① 숫자가 보이는지(“볼 수 없음”이 아닌지) ② 평일 장중(09:00~15:30)에 숫자가 바뀌는지 확인해 주세요. 보이는 칸의 번호를 알려 주시면 됩니다.</p>
+<section class="card"><h2>원/달러 환율</h2><div id="fx" style="display:grid;gap:6px"></div></section>
+<section class="card"><h2>국고채 3년</h2><div id="k3" style="display:grid;gap:6px"></div></section>
+<section class="card"><h2>국고채 10년</h2><div id="k10" style="display:grid;gap:6px"></div></section>
+<section class="card"><h2>목록형(한 줄) 위젯 — 3년·10년 같이</h2><div id="tk"></div></section>
+<p class="muted small"><a href="https://www.tradingview.com/markets/" target="_blank" rel="noopener nofollow">World markets</a> by TradingView</p></div>
+<script>
+function w(box, src, cfg){ const c=document.createElement("div"); c.className="tradingview-widget-container"; c.innerHTML='<div class="tradingview-widget-container__widget"></div>';
+  const sc=document.createElement("script"); sc.async=true; sc.src="https://s3.tradingview.com/external-embedding/"+src; sc.textContent=JSON.stringify(cfg); c.appendChild(sc); box.appendChild(c); }
+function list(id, syms){ syms.forEach((sym,i)=>{ const h=document.createElement("h3"); h.textContent=(i+1)+". "+sym; h.style.margin="6px 0 0"; document.getElementById(id).appendChild(h);
+  w(document.getElementById(id),"embed-widget-single-quote.js",{symbol:sym,width:"100%",isTransparent:false,colorTheme:"light",locale:"kr"}); }); }
+list("fx", ["FX_IDC:USDKRW","FX:USDKRW","OANDA:USDKRW","SAXO:USDKRW","PEPPERSTONE:USDKRW"]);
+list("k3", ["TVC:KR03Y","TVC:KR03","KRX:KR3YT"]);
+list("k10",["TVC:KR10Y","TVC:KR10","KRX:KR10YT"]);
+w(document.getElementById("tk"),"embed-widget-tickers.js",{symbols:[{proName:"TVC:KR03Y",title:"국고채 3년"},{proName:"TVC:KR10Y",title:"국고채 10년"},{proName:"FX_IDC:USDKRW",title:"원/달러"}],isTransparent:false,showSymbolLogo:false,colorTheme:"light",locale:"kr"});
+</script></body></html>

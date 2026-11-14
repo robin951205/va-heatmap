@@ -96,9 +96,9 @@ export async function pwHash(pw, salt, iter = PW_ITER) {
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(salt), iterations: iter }, key, 256);
   return [...new Uint8Array(bits)].map(x => x.toString(16).padStart(2, "0")).join("");
 }
-/** 새 비밀번호 규칙: 10자 이상, 영문·숫자 포함, 사번과 다름 */
+/** 새 비밀번호 규칙: 8자 이상, 영문·숫자 포함, 사번과 다름 */
 export function pwRuleError(pw, empno) {
-  if (typeof pw !== "string" || pw.length < 10 || pw.length > 64) return "비밀번호는 10자 이상 64자 이하로 정해 주세요.";
+  if (typeof pw !== "string" || pw.length < 8 || pw.length > 64) return "비밀번호는 8자 이상 64자 이하로 정해 주세요.";
   if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "비밀번호에 영문과 숫자를 모두 넣어 주세요.";
   if (pw.toUpperCase().includes(String(empno).toUpperCase())) return "비밀번호에 사번을 넣을 수 없습니다.";
   return null;

@@ -1115,7 +1115,7 @@ const HELP = {
     what:"미국 S&P 500 지수 옵션 가격으로 계산한 '앞으로 30일 동안 예상되는 주가 변동 폭'입니다. 시장이 불안할수록 높아져 흔히 '공포지수'라고 부릅니다.",
     read:[["15 미만","매우 안정"],["15~20","안정"],["20~30","경계 (변동성 확대)"],["30 이상","불안 (공포 국면)"]],
     use:"VIX가 높은 시기에는 해외주식형(특히 미국 투자) 펀드 기준가의 하루 등락 폭이 커지는 경향이 있고, 국내 주식형도 함께 흔들리는 경우가 많습니다. 주가가 오를지 내릴지가 아니라 '얼마나 흔들릴 것으로 보는지'를 나타냅니다.",
-    src:"산출 Cboe · 표시 TradingView 위젯(지연 시세, 실제 지수를 따르는 CFD 시세일 수 있음)"},
+    src:"산출 Cboe · 숫자 표시 TradingView 위젯(지연 시세, 실제 지수를 따르는 CFD 시세일 수 있음) · 구간 표시는 FRED(VIXCLS) 미국 전일 종가 기준"},
   rate: {t:"국고채 금리 (3년·10년)",
     what:"정부가 발행한 채권이 시장에서 거래되는 금리입니다. 3년물은 기준금리 전망 등 단기 금리를, 10년물은 장기 성장·물가 기대를 주로 반영합니다.",
     read:[["−5bp 이하","큰 폭 하락"],["−5~−2bp","하락"],["±2bp 미만","보합"],["+2~+5bp","상승"],["+5bp 이상","큰 폭 상승"]],
@@ -1182,10 +1182,12 @@ function renderMarket(){
   } else fxT+=`<div class="sub">데이터 준비 중입니다.</div>`;
   fxT+=`</div>`;
   // VIX (위젯 값 + 구간 눈금. 값은 위젯에서만 표시)
-  const vixT=`<div class="mk-t"><div class="r"><span class="nm">VIX 변동성 지수 ${q("vix")}</span><span class="dt">TradingView 지연</span></div><div class="tvq" id="vixW"></div>
-      ${bar(4,-1)}${lbg(["~15 매우 안정","15~20 안정","20~30 경계","30~ 불안"],-1)}</div>`;
+  const vb=IND&&IND.vix_band, vbi=vb&&Number.isInteger(vb.band)?vb.band:-1;
+  const vixT=`<div class="mk-t"><div class="r"><span class="nm">VIX 변동성 지수 ${q("vix")}</span>${vbi>=0?`<span class="mk-chip l${BANDS.vix[vbi].lv}">${BANDS.vix[vbi].label}</span>`:""}<span class="dt">TradingView 지연</span></div><div class="tvq" id="vixW"></div>
+      ${bar(4,vbi)}${lbg(["~15 매우 안정","15~20 안정","20~30 경계","30~ 불안"],vbi)}
+      ${vbi>=0?`<div class="mk-lb"><span>구간: ${mdate(vb.date)} 미국 종가 기준 (위젯 값과 시점이 다를 수 있음)</span></div>`:""}</div>`;
   $("mkGrid").innerHTML=rateT+fxT+vixT;
-  $("mkSum").innerHTML=[r3?`국고채 3년 <b class="num">${r3.value.toFixed(2)}%</b> (${sgn(r3.chg_bp)}bp)`:"", fx?`원/달러 <b class="num">${fmtN(fx.value,1)}</b>`:"", "VIX · 주요 지수"].filter(Boolean).join(" · ");
+  $("mkSum").innerHTML=[r3?`국고채 3년 <b class="num">${r3.value.toFixed(2)}%</b> (${sgn(r3.chg_bp)}bp)`:"", fx?`원/달러 <b class="num">${fmtN(fx.value,1)}</b>`:"", vbi>=0?`VIX <b>${BANDS.vix[vbi].label}</b>`:"VIX", "주요 지수"].filter(Boolean).join(" · ");
   loadVix(true);
 }
 let vixTheme=null;

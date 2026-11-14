@@ -212,6 +212,12 @@ a{color:var(--acc)}
 
 /* ── 사이드 ── */
 .side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.lcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (min-width:1181px){ .side{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto} }
+.mvcard{padding:12px 16px 14px}
+.mvh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px} .mvh h3{margin:0;font-size:14.5px} .mvh .mvt{margin:0;flex:1}
+.mvcols{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px} .mvcol h4{margin:4px 0 2px;font-size:12px;color:var(--tx3);font-weight:700}
+.mvcard .tabs2{display:none}
 .side .card{padding:14px 16px}
 .side h3{margin:0 0 8px;font-size:13px;color:var(--tx);font-weight:700;display:flex;justify-content:space-between;align-items:center}
 .side h3 small{color:var(--tx3);font-weight:500}
@@ -350,6 +356,9 @@ footer a{color:var(--tx3)}
   .types{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:0 10px} .tchip{min-width:84px;padding:5px 9px;flex:none} .tchip span{white-space:nowrap}
   /* 지도 */
   .main{gap:10px} .card{border-radius:12px}
+  .mvcols{grid-template-columns:1fr} .mvcard .tabs2{display:flex} .mvcol h4{display:none}
+  .mvh h3{flex:1} .mvh .mvt{order:3;flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} .mvh .mvt button{flex:none}
+  .mvcols[data-on=top] .mvcol[data-k=bot],.mvcols[data-on=bot] .mvcol[data-k=top]{display:none}
   .maphead{padding:7px 8px;flex-direction:row;flex-wrap:wrap} .mopts{gap:6px} .crumb{font-size:12px}
   #map,#scatter{height:calc(100svh - 196px);min-height:400px;margin:4px}
   .legend{padding:7px 8px;gap:6px} .legend .chips{width:100%} .legend .chips span{flex:1;min-width:0;padding:4px 0;font-size:9.5px}
@@ -509,6 +518,7 @@ footer a{color:var(--tx3)}
 
   <!-- 본문 -->
   <div class="main">
+    <div class="lcol">
     <div class="card">
       <div class="maphead">
         <div class="mopts">
@@ -549,14 +559,23 @@ footer a{color:var(--tx3)}
       <div id="tablewrap"><table class="ft" id="ft"></table></div>
     </div>
 
+      <!-- 수익률 상·하위 10 (PC: 두 목록 나란히 / 모바일: 탭) -->
+      <div class="card mvcard">
+        <div class="mvh"><h3 id="mvTitle">수익률 상·하위 10</h3>
+          <div class="mvt" id="mvTypes" role="group" aria-label="유형"></div>
+          <span class="tabs2" id="mvTabs"><button data-v="top" aria-pressed="true">상위</button><button data-v="bot" aria-pressed="false">하위</button></span></div>
+        <div class="mvcols" id="mvLists" data-on="top">
+          <div class="mvcol" data-k="top"><h4>상위 10</h4><div class="list" id="moversTop"></div></div>
+          <div class="mvcol" data-k="bot"><h4>하위 10</h4><div class="list" id="moversBot"></div></div>
+        </div>
+        <div class="hint" style="margin-top:8px">현재 필터·기간 기준 정렬이며, 소규모(순자산 50억 미만) 펀드도 포함됩니다(상단 '소규모 숨기기'로 제외 가능). 펀드를 누르면 상세가 열립니다. 특정 펀드의 추천이 아닙니다.</div>
+      </div>
+    </div>
+
     <div class="side">
       <div class="card det" id="det"></div>
-      <div class="card">
-        <h3><span id="mvTitle">기간 수익률 상·하위</span><span class="tabs2" id="mvTabs"><button data-v="top" aria-pressed="true">상위</button><button data-v="bot" aria-pressed="false">하위</button></span></h3>
-        <div class="mvt" id="mvTypes" role="group" aria-label="유형"></div>
-        <div class="list" id="movers"></div>
-        <div class="hint" style="margin-top:8px">현재 필터·기간 기준 정렬입니다. 소규모(순자산 50억 미만) 펀드도 포함되며, 상단 '소규모 숨기기'로 뺄 수 있습니다. 특정 펀드의 추천이 아닙니다.</div>
-      </div>
+    </div>
+  </div>
     </div>
   </div>
 
@@ -957,14 +976,17 @@ function renderMovers(){
   const tps=TYPE_ORDER.filter(t=>filtered().some(f=>f.fund_type===t));
   if (S.mvType && !tps.includes(S.mvType)) S.mvType="";
   $("mvTypes").innerHTML=[["","전체"],...tps.map(t=>[t,t])].map(([v,l])=>`<button data-v="${v}" aria-pressed="${(S.mvType||"")===v}">${l}</button>`).join("");
-  const arr=filtered().filter(f=>m(f)!=null && (!S.mvType || f.fund_type===S.mvType));
-  arr.sort((a,b)=> S.mv==="top" ? m(b)-m(a) : m(a)-m(b));
-  $("mvTitle").textContent=`${PS[p]} ${ex?"유형 평균 대비":"수익률"} ${S.mv==="top"?"상위":"하위"} 10${S.mvType?` · ${S.mvType}`:""}`;
-  $("movers").innerHTML = arr.slice(0,10).map((f,i)=>`<div class="li" data-id="${f.fund_id}"><span class="k num">${i+1}</span>
+  const arr=filtered().filter(f=>m(f)!=null && (!S.mvType || f.fund_type===S.mvType)).sort((a,b)=>m(b)-m(a));
+  $("mvTitle").textContent=`${PS[p]} ${ex?"유형 평균 대비":"수익률"} 상·하위 10${S.mvType?` · ${S.mvType}`:""}`;
+  const li=(f,i)=>`<div class="li" data-id="${f.fund_id}"><span class="k num">${i+1}</span>
     <span class="a"><b>${esc(f.fund_name)}</b><span><i class="ttag">${esc(f.fund_type)}</i>${esc(shortIns(f.insurer_name))} · ${fmtN(f.net_assets_100m,0)}억</span></span>
-    <span class="r num" style="color:${txtColor(m(f))}">${ex?fmtP(m(f)):fmt(f.ret[p])}</span></div>`).join("") || `<div class="hint">해당 기간 데이터가 없습니다.</div>`;
+    <span class="r num" style="color:${txtColor(m(f))}">${ex?fmtP(m(f)):fmt(f.ret[p])}</span></div>`;
+  const none=`<div class="hint">해당 기간 데이터가 없습니다.</div>`;
+  $("moversTop").innerHTML = arr.slice(0,10).map(li).join("") || none;
+  $("moversBot").innerHTML = arr.slice(-10).reverse().map(li).join("") || none;
+  $("mvLists").dataset.on = S.mv;
 }
-$("movers").addEventListener("click",e=>{ const li=e.target.closest(".li"); if(!li) return;
+$("mvLists").addEventListener("click",e=>{ const li=e.target.closest(".li"); if(!li) return;
   const f=DATA.byId.get(li.dataset.id); if(S.zoom && zoomKey(f)!==S.zoom) S.zoom=null; S.sel=null; renderAll(); select(li.dataset.id); });
 
 // ═══════════════════ 범례·경로 ═══════════════════

@@ -100,6 +100,13 @@ jobs:
             python scripts/scrape_klia.py --anchors --prune-months 14
           fi
 
+      - name: 시장 지표 (국고채 금리·원/달러, 한국은행 ECOS · 키 없으면 건너뜀)
+        if: steps.cfg.outputs.live == 'true'
+        continue-on-error: true
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+        run: python scripts/fetch_indicators.py
+
       - name: 주요 지수 (코스피, 공공데이터 API · 키 없으면 건너뜀)
         if: steps.cfg.outputs.live == 'true'
         continue-on-error: true

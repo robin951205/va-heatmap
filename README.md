@@ -51,3 +51,8 @@ python -m http.server 8000                                # 브라우저에서 h
 - 수익률은 기준가 기준(특별계정 운용보수 차감 후)이며 계약자 적립금 수익률과 다름
 - 과거 수익률은 미래 수익을 보장하지 않음. 특정 펀드 추천·펀드변경 권유 아님
 - 데이터 출처: 생명보험협회 공시실. 비공식 개인 제작 사이트
+
+## 검증계·운영계 (2026-11-14~)
+- 운영계 = `main`, 검증계 = `develop`. 수정은 `develop` 에 먼저 반영 → 검증계에서 확인 → '이관' 버튼으로 `main` 반영
+- 서버 기능(권한 요청·로그인·이관): `functions/` (Cloudflare Pages Functions + D1). 관리 화면: `admin/`
+- 설정 방법: [docs/cloudflare_setup.md](docs/cloudflare_setup.md)

@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>검증계 로그인 · 변액보험 펀드 히트맵</title>
+<link rel="stylesheet" href="/admin/admin.css"></head><body class="center">
+<form class="card" id="f" autocomplete="off">
+  <h1>검증계 로그인</h1>
+  <p class="muted">관리자로 승인된 사용자만 접속할 수 있습니다.</p>
+  <label>사번<input name="empno" required maxlength="20" autocapitalize="characters"></label>
+  <label>접속코드<input name="code" required maxlength="20" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters"></label>
+  <button type="submit">로그인</button>
+  <p class="err" id="err"></p>
+  <p class="muted small">접속코드는 마스터 관리자에게 승인 후 전달받습니다. 분실 시 마스터 관리자에게 재발급을 요청하세요.</p>
+</form>
+<script>
+f.onsubmit=async e=>{e.preventDefault(); err.textContent="";
+  const r=await fetch("/api/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(f)))});
+  const d=await r.json(); if(!r.ok){err.textContent=d.error||"로그인 실패";return;}
+  const n=new URLSearchParams(location.search).get("next"); location.href=(n&&n.startsWith("/")&&!n.startsWith("//"))?n:"/";};
+</script></body></html>

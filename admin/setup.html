@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>최초 마스터 관리자 지정</title>
+<link rel="stylesheet" href="/admin/admin.css"></head><body class="center">
+<form class="card" id="f" autocomplete="off">
+  <h1>최초 마스터 관리자 지정</h1>
+  <p class="muted">마스터 관리자가 없을 때 한 번만 사용합니다. 설정키는 Cloudflare 에 등록한 SETUP_KEY 입니다.</p>
+  <label>설정키<input name="setup_key" type="password" required></label>
+  <label>소속<input name="org" required maxlength="40"></label>
+  <label>사번<input name="empno" required maxlength="20"></label>
+  <label>이름<input name="name" required maxlength="20"></label>
+  <button type="submit">지정</button>
+  <p class="err" id="err"></p>
+  <div id="ok" hidden><p>지정되었습니다. 아래 <b>접속코드</b>를 안전한 곳에 보관하세요. 다시 볼 수 없습니다.</p><p class="code" id="code"></p><a href="/admin/login">로그인하러 가기</a></div>
+</form>
+<script>
+f.onsubmit=async e=>{e.preventDefault(); err.textContent="";
+  const r=await fetch("/api/setup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(f)))});
+  const d=await r.json(); if(!r.ok){err.textContent=d.error;return;} code.textContent=d.code; ok.hidden=false;};
+</script></body></html>

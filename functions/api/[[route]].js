@@ -25,6 +25,8 @@ export async function onRequest(ctx) {
 
     if (route === "health") return json({ ok: true, stage: prod ? "production" : "staging", db: !!env.DB, retention_years: RETENTION_YEARS });
     if (route === "request" && m === "POST") return await requestAdmin(env, request, body);
+    if (route === "hit" && m === "POST") return await hit(env, request, prod);   // 조회수 (운영계에서만 증가)
+    if (route === "stats") return json(await viewStats(env));
     if (prod) return json({ error: "관리 기능은 검증계에서만 사용할 수 있습니다." }, 404);
 
     if (route === "setup" && m === "POST") return await setup(env, body);
@@ -37,6 +39,10 @@ export async function onRequest(ctx) {
     if (route === "password" && m === "POST") return await setPassword(env, request, me, body);
     if (route === "diff") return await diff(env);
     if (route === "promote" && m === "POST") return await promote(env, me);
+    if (route === "views") {   // 관리자: 최근 60일 일자별 조회수
+      const { results } = await (await db(env)).prepare("SELECT day, n FROM views ORDER BY day DESC LIMIT 60").all();
+      return json({ days: results, ...(await viewStats(env)) });
+    }
 
     if (!route.startsWith("admin/")) return json({ error: "없는 경로" }, 404);
     if (me.role !== "master") return json({ error: "마스터 관리자만 사용할 수 있습니다." }, 403);
@@ -68,6 +74,23 @@ export async function onRequest(ctx) {
   } catch (e) {
     return json({ error: String(e.message || e) }, 500);
   }
+}
+
+// ── 조회수: 일자별 합계만 저장(방문자 정보 저장 안 함). 같은 브라우저 30분 내 재조회는 화면에서 걸러 보냄 ──
+const kstDay = (d = new Date()) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+const BOT = /bot|crawl|spider|slurp|preview|scrap|facebookexternalhit|kakaotalk-scrap|headless|lighthouse/i;
+async function viewStats(env) {
+  const D = await db(env), today = kstDay();
+  const r = await D.prepare(`SELECT COALESCE(SUM(CASE WHEN day=? THEN n END),0) AS today,
+      COALESCE(SUM(CASE WHEN substr(day,1,7)=? THEN n END),0) AS month, COALESCE(SUM(n),0) AS total, MIN(day) AS since FROM views`)
+    .bind(today, today.slice(0, 7)).first();
+  return { today: r.today, month: r.month, total: r.total, since: r.since, day: today };
+}
+async function hit(env, request, prod) {
+  const ua = request.headers.get("user-agent") || "";
+  if (prod && ua && !BOT.test(ua))
+    await (await db(env)).prepare("INSERT INTO views(day,n) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET n=n+1").bind(kstDay()).run();
+  return json(await viewStats(env));
 }
 
 // ── 권한요청 (운영계 팝업) ──

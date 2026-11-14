@@ -7,6 +7,12 @@
     <a href="/">← 검증계 화면</a><a href="/admin/password">비밀번호 변경</a><a href="#" id="out">로그아웃</a>
   </div>
 
+  <section class="card">
+    <h2>조회수 <span class="muted small" id="vSum"></span></h2>
+    <div id="vChart" style="display:flex;align-items:flex-end;gap:2px;height:90px;margin:6px 0 4px"></div>
+    <div class="muted small" id="vNote">최근 60일 · 운영계 기준 · 같은 브라우저 30분 내 재방문 제외 · 방문자 정보는 저장하지 않음</div>
+  </section>
+
   <section class="card" id="noMaster" hidden>
     <h2>일반관리자</h2>
     <p class="muted">권한 승인·해제와 마스터 인계는 마스터 관리자만 할 수 있습니다. 검증계 화면 상단의 '이관' 버튼으로 운영계 반영을 할 수 있습니다.</p>
@@ -54,6 +60,11 @@ $("out").onclick=async e=>{e.preventDefault();await api("logout",{});location.hr
 async function load(){
   const me=(await api("me")).admin; if(!me) return;
   $("meTag").textContent=`${me.name} · ${me.role==="master"?"마스터 관리자":"일반관리자"}`; $("meTag").className="tag "+(me.role==="master"?"master":"");
+  api("views").then(v=>{ if(!v.ok&&v.error) return;
+    $("vSum").textContent=`오늘 ${v.today.toLocaleString()} · 이번 달 ${v.month.toLocaleString()} · 누적 ${v.total.toLocaleString()}`;
+    const ds=(v.days||[]).slice().reverse(), mx=Math.max(1,...ds.map(d=>d.n));
+    $("vChart").innerHTML=ds.map(d=>`<i title="${d.day} · ${d.n.toLocaleString()}" style="flex:1;min-width:3px;background:#1f4fb4;opacity:.75;border-radius:2px 2px 0 0;height:${Math.max(2,d.n/mx*100)}%"></i>`).join("")||'<span class="muted small">아직 집계된 조회수가 없습니다.</span>';
+  });
   if(me.role!=="master"){$("noMaster").hidden=false;return;}
   $("masterArea").hidden=false;
   const [rq,us,au]=await Promise.all([api("admin/requests"),api("admin/users"),api("admin/audit")]);

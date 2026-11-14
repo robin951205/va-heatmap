@@ -41,6 +41,7 @@ export async function db(env) {
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY, empno TEXT, expires_at INTEGER)`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, actor TEXT, action TEXT, detail TEXT)`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS fails(k TEXT, at INTEGER)`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS views(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),   // 일자별 조회수(개인정보 없음)
     ]);
     // 해제일 컬럼(보관기간 계산용). 이미 있으면 오류 → 무시
     for (const c of ["revoked_at TEXT", "pw_hash TEXT", "pw_salt TEXT", "pw_iter INTEGER", "must_change INTEGER DEFAULT 1"])

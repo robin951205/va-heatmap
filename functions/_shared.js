@@ -42,6 +42,8 @@ export async function db(env) {
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, actor TEXT, action TEXT, detail TEXT)`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS fails(k TEXT, at INTEGER)`),
     ]);
+    // 해제일 컬럼(보관기간 계산용). 이미 있으면 오류 → 무시
+    try { await env.DB.prepare("ALTER TABLE admins ADD COLUMN revoked_at TEXT").run(); } catch (_) {}
     ready = true;
   }
   return env.DB;
@@ -67,4 +69,21 @@ export async function currentAdmin(env, request) {
   const row = await D.prepare(`SELECT a.empno,a.name,a.org,a.role FROM sessions s JOIN admins a ON a.empno=s.empno
       WHERE s.token_hash=? AND s.expires_at>? AND a.status='active'`).bind(await sha256(tok), Date.now()).first();
   return row || null;
+}
+
+/** 개인정보 보관기간 5년(2026-11-14 결정): 기준일로부터 5년 지난 기록 파기
+ *  - 권한요청: 처리일(승인·반려) 기준 / 처리 전 신청은 보관
+ *  - 관리자: 권한 해제일 기준 (활성 관리자는 보관)
+ *  - 처리 이력(audit): 기록일 기준 */
+export const RETENTION_YEARS = 5;
+export async function purgeExpired(env) {
+  const D = await db(env), cut = new Date(Date.now() - RETENTION_YEARS * 365.25 * 86400e3).toISOString();
+  const r = await D.batch([
+    D.prepare("DELETE FROM requests WHERE status!='pending' AND decided_at<?").bind(cut),
+    D.prepare("DELETE FROM admins WHERE status='revoked' AND revoked_at IS NOT NULL AND revoked_at<?").bind(cut),
+    D.prepare("DELETE FROM audit WHERE at<?").bind(cut),
+  ]);
+  const n = r.reduce((a, x) => a + (x.meta?.changes || 0), 0);
+  if (n) await audit(env, "system", "보관기간 경과 파기", { rows: n, before: cut.slice(0, 10) });
+  return n;
 }

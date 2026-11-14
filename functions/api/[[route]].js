@@ -4,7 +4,7 @@
 //  관리자: GET me · POST logout · GET diff · POST promote(이관)
 //  마스터: GET admin/requests · POST admin/decide · GET admin/users · POST admin/revoke · POST admin/reset-code
 //          POST admin/transfer(마스터 인계) · GET admin/audit · POST admin/delete-request
-import { isProd, json, db, sha256, randomHex, newAccessCode, normCode, nowIso, audit, currentAdmin, COOKIE } from "../_shared.js";
+import { isProd, json, db, sha256, randomHex, newAccessCode, normCode, nowIso, audit, currentAdmin, COOKIE, purgeExpired, RETENTION_YEARS } from "../_shared.js";
 
 const SESSION_H = 12;
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
@@ -23,7 +23,7 @@ export async function onRequest(ctx) {
     const body = m === "POST" ? await request.json().catch(() => ({})) : {};
     const prod = isProd(env, request);
 
-    if (route === "health") return json({ ok: true, stage: prod ? "production" : "staging", db: !!env.DB });
+    if (route === "health") return json({ ok: true, stage: prod ? "production" : "staging", db: !!env.DB, retention_years: RETENTION_YEARS });
     if (route === "request" && m === "POST") return await requestAdmin(env, request, body);
     if (prod) return json({ error: "관리 기능은 검증계에서만 사용할 수 있습니다." }, 404);
 
@@ -40,6 +40,7 @@ export async function onRequest(ctx) {
     if (!route.startsWith("admin/")) return json({ error: "없는 경로" }, 404);
     if (me.role !== "master") return json({ error: "마스터 관리자만 사용할 수 있습니다." }, 403);
     const D = await db(env), sub = route.slice(6);
+    ctx.waitUntil(purgeExpired(env).catch(() => {}));   // 마스터가 관리 화면을 열 때마다 기한 지난 기록 파기
     if (sub === "requests") {
       const { results } = await D.prepare("SELECT id,empno,name,org,status,note,created_at,decided_at,decided_by FROM requests ORDER BY (status='pending') DESC, id DESC LIMIT 200").all();
       return json({ requests: results });
@@ -98,7 +99,7 @@ async function setup(env, b) {
 async function putAdmin(D, { empno, name, org, role, by }) {
   const code = newAccessCode(), salt = randomHex(16);
   await D.prepare(`INSERT INTO admins(empno,name,org,role,status,code_hash,code_salt,created_at,approved_by) VALUES(?,?,?,?,'active',?,?,?,?)
-      ON CONFLICT(empno) DO UPDATE SET name=excluded.name, org=excluded.org, role=excluded.role, status='active',
+      ON CONFLICT(empno) DO UPDATE SET name=excluded.name, org=excluded.org, role=excluded.role, status='active', revoked_at=NULL,
       code_hash=excluded.code_hash, code_salt=excluded.code_salt, approved_by=excluded.approved_by`)
     .bind(empno, name, org, role, await sha256(salt + normCode(code)), salt, nowIso(), by).run();
   return code;
@@ -149,7 +150,7 @@ async function revoke(env, me, b) {
   const empno = clean(b.empno, 20).toUpperCase();
   if (empno === me.empno) return json({ error: "본인 권한은 해제할 수 없습니다. 먼저 마스터를 인계하세요." }, 400);
   const D = await db(env);
-  await D.batch([D.prepare("UPDATE admins SET status='revoked' WHERE empno=? AND role!='master'").bind(empno), D.prepare("DELETE FROM sessions WHERE empno=?").bind(empno)]);
+  await D.batch([D.prepare("UPDATE admins SET status='revoked', revoked_at=? WHERE empno=? AND role!='master'").bind(nowIso(), empno), D.prepare("DELETE FROM sessions WHERE empno=?").bind(empno)]);
   await audit(env, me.empno, "관리자 해제", { empno });
   return json({ ok: true });
 }

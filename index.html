@@ -1084,7 +1084,7 @@ function marketHtml(){
 // 국고채·환율: 한국은행 ECOS (일 배치 → data/indicators.json)
 // VIX·주요 지수: TradingView 무료 위젯(표시 권한은 위젯 제공사, 지연 시세). VIX 는 Cboe 저작권 데이터라 직접 수집·재게시하지 않음
 let IND = null;
-const VIX_SYMBOL = "CAPITALCOM:VIX";   // 위젯 표시 가능 심볼 점검 후 확정
+const VIX_SYMBOL = "CAPITALCOM:VIX";   // 2026-11-14 점검: 위젯 표시 확인 (대안 PEPPERSTONE:VIX)
 const TV_SYMBOLS = [   // 미국 지수는 지수 추종 CFD
   {proName:"FOREXCOM:SPXUSD",  title:"S&P 500"},
   {proName:"FOREXCOM:NSXUSD",  title:"나스닥 100"},

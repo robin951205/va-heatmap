@@ -41,6 +41,7 @@ const BANNER = `
   <button id="stgPromote" disabled style="background:#fff;color:#7A3E00;border:0;border-radius:6px;padding:5px 12px;font-weight:700;cursor:pointer">이관</button>
   <a href="#" id="stgOut" style="color:#fff;opacity:.85">로그아웃</a>
 </div>
+<style>#stgPromote:disabled{opacity:.45;cursor:not-allowed}</style>
 <div id="stgList" style="display:none;background:#FFF4E5;color:#4A2A00;font:12.5px/1.6 system-ui,sans-serif;padding:8px 14px;border-bottom:1px solid #F0D2A8"></div>
 <script>
 (function(){

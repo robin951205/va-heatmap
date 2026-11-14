@@ -51,17 +51,37 @@ def ecos(stat, item, start, end):
 VIX_BANDS = [15, 20, 30]   # 매우 안정 / 안정 / 경계 / 불안 (화면 BANDS.vix 와 동일)
 
 
-def vix_band():
-    """FRED VIXCLS 최근 종가 → 구간 번호(0~3)와 날짜. 값은 반환하지 않음"""
-    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS", timeout=40,
-                     headers={"user-agent": "va-heatmap-batch"})
-    r.raise_for_status()
-    rows = [ln.split(",") for ln in r.text.strip().splitlines()[1:]]
-    rows = [(d, float(v)) for d, v in rows if v not in (".", "")]
+def _last_close(text, date_col=0, val_col=-1, skip=1):
+    rows = []
+    for ln in text.strip().splitlines()[skip:]:
+        p = ln.split(",")
+        try: rows.append((p[date_col].strip(), float(p[val_col])))
+        except (ValueError, IndexError): pass
     if not rows:
-        raise RuntimeError("VIXCLS 데이터 없음")
-    d, v = rows[-1]
-    return {"date": d, "band": sum(v >= b for b in VIX_BANDS), "source": "Cboe(FRED VIXCLS) 전일 종가 기준 구간"}
+        raise RuntimeError("데이터 없음")
+    return rows[-1]
+
+
+def vix_band():
+    """VIX 최근 종가 → 구간 번호(0~3)와 날짜. 값은 반환·저장하지 않음
+    1순위 Cboe 공개 CSV, 2순위 FRED VIXCLS (각 2회 시도)"""
+    srcs = [
+        ("Cboe", "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv", 0, 4),   # DATE,OPEN,HIGH,LOW,CLOSE (MM/DD/YYYY)
+        ("FRED", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS&cosd=" + (datetime.now(KST).date() - timedelta(days=30)).isoformat(), 0, 1),
+    ]
+    errs = []
+    for name, url, dc, vc in srcs:
+        for _ in range(2):
+            try:
+                r = requests.get(url, timeout=(10, 60), headers={"user-agent": "Mozilla/5.0 (va-heatmap batch)"})
+                r.raise_for_status()
+                d, v = _last_close(r.text, dc, vc)
+                if "/" in d:
+                    m, dd, y = d.split("/"); d = f"{y}-{int(m):02d}-{int(dd):02d}"
+                return {"date": d, "band": sum(v >= b for b in VIX_BANDS), "source": f"Cboe VIX 전일 종가 기준 구간({name})"}
+            except Exception as e:
+                errs.append(f"{name}: {str(e)[:120]}")
+    raise RuntimeError(" / ".join(errs))
 
 
 def iso(t):

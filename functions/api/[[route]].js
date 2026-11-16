@@ -25,6 +25,7 @@ export async function onRequest(ctx) {
 
     if (route === "health") return json({ ok: true, stage: prod ? "production" : "staging", db: !!env.DB, retention_years: RETENTION_YEARS });
     if (route === "request" && m === "POST") return await requestAdmin(env, request, body);
+    if (route === "kick") return await kick(env, request, prod);   // 외부 예약 호출 → 일 배치 실행 요청
     if (route === "hit" && m === "POST") return await hit(env, request, prod);   // 조회수 (운영계에서만 증가)
     if (route === "stats") return json(await viewStats(env));
     if (prod) return json({ error: "관리 기능은 검증계에서만 사용할 수 있습니다." }, 404);
@@ -74,6 +75,39 @@ export async function onRequest(ctx) {
   } catch (e) {
     return json({ error: String(e.message || e) }, 500);
   }
+}
+
+// ── 배치 실행 요청 (외부 예약 호출 서비스용) ──
+// GET/POST /api/kick?key=KICK_KEY → 오늘 기준가가 이미 전부 반영됐으면 건너뜀, 아니면 config/live.json 을 갱신 커밋 → GitHub 배치 시작
+async function kick(env, request, prod) {
+  const key = new URL(request.url).searchParams.get("key") || request.headers.get("x-kick-key") || "";
+  if (!prod) return json({ error: "운영 주소에서만 사용합니다." }, 404);
+  if (!env.KICK_KEY || key.length !== env.KICK_KEY.length || (await sha256(key)) !== (await sha256(env.KICK_KEY)))
+    return json({ error: "키가 맞지 않습니다." }, 403);
+  const D = await db(env);
+  await D.prepare("CREATE TABLE IF NOT EXISTS kicks(at INTEGER, result TEXT)").run();
+  const last = await D.prepare("SELECT MAX(at) t FROM kicks WHERE result='요청'").first();
+  if (last.t && Date.now() - last.t < 20 * 60e3) return json({ ok: true, result: "20분 안에 이미 요청함 → 건너뜀" });
+  const today = kstDay();
+  // 오늘 기준가가 전부 들어와 있으면 건너뜀
+  try {
+    const st = await (await gh(env, "/contents/data/batch_status.json?ref=main", { headers: { accept: "application/vnd.github.raw+json" } })).json();
+    const lg = (st.log || []).find(x => x.date === today);
+    if (st.base_date === today && lg && (lg.result === "저장" || lg.result === "저장분")) {
+      await D.prepare("INSERT INTO kicks VALUES(?,?)").bind(Date.now(), "최신").run();
+      return json({ ok: true, result: `이미 ${today} 기준가 반영됨 → 건너뜀` });
+    }
+  } catch (_) { /* 상태 확인 실패 시 그냥 실행 요청 */ }
+  const cur = await (await gh(env, "/contents/config/live.json?ref=main")).json();
+  if (!cur.sha) return json({ error: "설정 파일 조회 실패" }, 502);
+  const cfg = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\n/g, "")))));
+  cfg.backfill = { ...(cfg.backfill || {}), requested_at: new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16) + "+09:00" };
+  const body = unescape(encodeURIComponent(JSON.stringify(cfg, null, 2) + "\n"));
+  const r = await gh(env, "/contents/config/live.json", { method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: `배치 실행 요청 (예약 호출 ${today})`, content: btoa(body), sha: cur.sha, branch: "main" }) });
+  if (!r.ok) return json({ error: `GitHub ${r.status}` }, 502);
+  await D.prepare("INSERT INTO kicks VALUES(?,?)").bind(Date.now(), "요청").run();
+  return json({ ok: true, result: "배치 실행 요청 완료 (약 2~3분 뒤 반영)" });
 }
 
 // ── 조회수: 일자별 합계만 저장(방문자 정보 저장 안 함). 같은 브라우저 30분 내 재조회는 화면에서 걸러 보냄 ──
@@ -224,7 +258,7 @@ async function transfer(env, me, b) {
 // ── 이관: GitHub 에서 develop → main 병합 (운영계는 main 기준 자동 배포) ──
 async function gh(env, path, init = {}) {
   if (!env.GITHUB_TOKEN || !env.GITHUB_REPO) throw new Error("GITHUB_TOKEN·GITHUB_REPO 설정이 없습니다.");
-  return fetch(`https://api.github.com/repos/${env.GITHUB_REPO}${path}`, {
+  return fetch(`${env.GH_API || "https://api.github.com"}/repos/${env.GITHUB_REPO}${path}`, {
     ...init, headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: "application/vnd.github+json", "user-agent": "va-heatmap-admin", ...(init.headers || {}) },
   });
 }

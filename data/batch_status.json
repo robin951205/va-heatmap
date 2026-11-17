@@ -1,11 +1,13 @@
 {
  "target": "2026-11-17",
  "base_date": "2026-11-17",
+ "complete": true,
+ "missing_insurers": [],
  "log": [
   {
    "label": "기준일",
    "date": "2026-11-17",
-   "rows": 1732,
+   "rows": 1805,
    "result": "저장"
   }
  ]

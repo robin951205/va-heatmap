@@ -270,9 +270,24 @@ def run_anchors(sess, c, target: date):
     print("사용 일자: " + ", ".join(f"{k}={v}" for k, v in used.items()))
     miss = [k for k, v in used.items() if v is None]
     if miss: print(f"[경고] 시작일 기준가 없음 → 해당 기간 N/A: {miss}")
+    # 기준일에 아직 공시하지 않은 보험사(직전 기준일엔 있었는데 오늘 0건) → 보완 실행·예약 호출이 다시 시도하는 근거
+    missing = []
+    try:
+        dc = c.get("date_column", "기준일")
+        ds = sorted(d for d in existing_dates() if d < base.isoformat())
+        if ds:
+            frames = [pd.read_csv(os.path.join(RAW_DIR, f"nav_{m}.csv.gz"), dtype=str, keep_default_na=False)
+                      for m in sorted({base.isoformat()[:7], ds[-1][:7]}) if os.path.exists(os.path.join(RAW_DIR, f"nav_{m}.csv.gz"))]
+            raw = pd.concat(frames)
+            prev_ins = set(raw.loc[raw[dc] == ds[-1], "보험사명"]); now_ins = set(raw.loc[raw[dc] == base.isoformat(), "보험사명"])
+            missing = sorted(prev_ins - now_ins)
+    except Exception as e:
+        print("[경고] 미공시 보험사 확인 실패:", e)
+    if missing: print("[안내] 아직 공시 전인 보험사:", missing)
     # 조회 결과가 바뀔 때만 파일 내용이 바뀌도록 실행 시각은 넣지 않음
     with open("data/batch_status.json", "w", encoding="utf-8") as f:
-        json.dump({"target": target.isoformat(), "base_date": base.isoformat(), "log": [x for x in LOG if x["label"] == "기준일"]},
+        json.dump({"target": target.isoformat(), "base_date": base.isoformat(), "complete": base == target and not missing,
+                   "missing_insurers": missing, "log": [x for x in LOG if x["label"] == "기준일"]},
                   f, ensure_ascii=False, indent=1)
 
 def prune(months: int):

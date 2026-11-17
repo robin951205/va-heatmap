@@ -92,8 +92,7 @@ async function kick(env, request, prod) {
   // 오늘 기준가가 전부 들어와 있으면 건너뜀
   try {
     const st = await (await gh(env, "/contents/data/batch_status.json?ref=main", { headers: { accept: "application/vnd.github.raw+json" } })).json();
-    const lg = (st.log || []).find(x => x.date === today);
-    if (st.base_date === today && lg && (lg.result === "저장" || lg.result === "저장분")) {
+    if (st.base_date === today && st.complete === true) {   // 오늘 기준가 + 모든 보험사 공시 완료일 때만 건너뜀
       await D.prepare("INSERT INTO kicks VALUES(?,?)").bind(Date.now(), "최신").run();
       return json({ ok: true, result: `이미 ${today} 기준가 반영됨 → 건너뜀` });
     }

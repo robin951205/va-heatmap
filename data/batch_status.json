@@ -1,15 +1,13 @@
 {
  "target": "2026-11-18",
  "base_date": "2026-11-18",
- "complete": false,
- "missing_insurers": [
-  "메트라이프생명"
- ],
+ "complete": true,
+ "missing_insurers": [],
  "log": [
   {
    "label": "기준일",
    "date": "2026-11-18",
-   "rows": 1733,
+   "rows": 1805,
    "result": "저장"
   }
  ]

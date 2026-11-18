@@ -113,6 +113,7 @@ a{color:var(--acc)}
 .mkt span b{color:var(--tx);font-weight:600}
 .brief.fold .mkt{display:none}
 /* ── 시장 지표 (펀드 정보 보조 · 중립색) ── */
+.pill.wait{background:#fff4e5;border-color:#f3d3a3;color:#8a5200;font-size:12px} [data-theme=dark] .pill.wait{background:#3a2b12;border-color:#5c4320;color:#f0c27a}
 .mk{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px 8px;margin-bottom:12px;box-shadow:var(--shadow)}
 .mk-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .mk-h b{font-size:13.5px} .mk-h .mk-note{font-size:12px;color:var(--tx3)} .mk-h .sp{flex:1}
@@ -442,6 +443,7 @@ footer a{color:var(--tx3)}
     </div>
     <div class="asof">
       <span class="pill" title="기준일 = 공시실 조회일자 · 해당 기준가는 전 영업일까지의 시장 성과를 반영"><i class="dot" id="fresh"></i>기준일 <b class="num" id="baseDate">-</b><span id="lag"></span><span class="pill-sub"> · 매일 갱신</span></span>
+      <span class="pill wait" id="waitPill" hidden title="공시실에 오늘 기준가를 아직 올리지 않은 보험사입니다. 공시되면 자동으로 채워집니다."></span>
       <button class="iconbtn" id="guideBtn" title="처음 오셨다면 사용법을 확인하세요">? 사용법</button>
       <div class="rel">
         <button class="iconbtn" id="setBtn" aria-haspopup="true" aria-expanded="false">⚙ 표시 설정</button>
@@ -1403,6 +1405,10 @@ async function boot(){
   computeRanks();
   try { const r=await fetch("data/indicators.json",{cache:"no-cache"}); if(r.ok) IND=await r.json(); } catch(_){}
   try { renderMarket(); } catch(e){ console.warn("시장 지표", e); }
+  // 오늘 기준가를 아직 공시하지 않은 보험사 안내
+  try { const r=await fetch("data/batch_status.json",{cache:"no-cache"}); if(r.ok){ const st=await r.json();
+    if (st.base_date===DATA.base_date && Array.isArray(st.missing_insurers) && st.missing_insurers.length){
+      $("waitPill").innerHTML=`공시 대기 ${st.missing_insurers.map(x=>esc(shortIns(x))).join("·")}<span class="pill-sub"> · 공시되면 자동 반영</span>`; $("waitPill").hidden=false; } } } catch(_){}
   try { if(!localStorage.getItem("vah_guide")) setTimeout(()=>showGuide(0),700); } catch(_){}
   $("mockBadge").style.display = IS_MOCK ? "" : "none";
   const bd=new Date(DATA.base_date+"T00:00:00+09:00");

@@ -3,14 +3,13 @@
  "base_date": "2026-11-18",
  "complete": false,
  "missing_insurers": [
-  "KB라이프생명",
   "메트라이프생명"
  ],
  "log": [
   {
    "label": "기준일",
    "date": "2026-11-18",
-   "rows": 1498,
+   "rows": 1733,
    "result": "저장"
   }
  ]

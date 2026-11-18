@@ -280,7 +280,7 @@ def run_anchors(sess, c, target: date):
     missing = []
     try:
         dc = c.get("date_column", "기준일")
-        ds = sorted(d for d in existing_dates() if d < base.isoformat())
+        ds = sorted(d for d in existing_dates(c) if d < base.isoformat())
         if ds:
             frames = [pd.read_csv(os.path.join(RAW_DIR, f"nav_{m}.csv.gz"), dtype=str, keep_default_na=False)
                       for m in sorted({base.isoformat()[:7], ds[-1][:7]}) if os.path.exists(os.path.join(RAW_DIR, f"nav_{m}.csv.gz"))]

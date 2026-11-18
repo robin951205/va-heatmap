@@ -262,6 +262,12 @@ def run_anchors(sess, c, target: date):
         last = max(have); f = os.path.join(RAW_DIR, f"nav_{last[:7]}.csv.gz")
         try: min_rows = int((pd.read_csv(f, dtype=str, usecols=[c.get("date_column", "기준일")])[c.get("date_column", "기준일")] == last).sum() * 0.95)
         except Exception: min_rows = 0
+    # 관리자가 '일부 공시라도 오늘 날짜로 반영'을 요청한 날(config/live.json accept_partial_date)은 95% 기준 해제
+    try:
+        if json.load(open("config/live.json", encoding="utf-8")).get("accept_partial_date") == target.isoformat():
+            print("[안내] 오늘은 일부 공시라도 반영 (accept_partial_date)"); min_rows = 0
+    except Exception:
+        pass
     base = find_available(sess, c, target, have, "기준일", min_rows)
     if base is None: sys.exit("[중단] 기준일 기준가를 찾지 못함")
     used = {"기준일": base}

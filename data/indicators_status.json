@@ -1,4 +1,4 @@
 {
- "ok": true,
- "result": "성공: 국고채 3년 2026-11-25 3.583, 국고채 10년 2026-11-25 3.761, 원/달러 환율(매매기준율) 2026-11-25 1343.6"
+ "ok": false,
+ "result": "실패: 국고채 3년: HTTPSConnectionPool(host='ecos.bok.or.kr', port=443): Max retries exceeded with url: /api/StatisticSearch/***/json/kr/1/1000/817Y002/D/20251110/20261125/010200000 (Caused by ConnectTimeoutError(<HTTPS / 국고채 10년: HTTPSConnectionPool(host='ecos.bok.or.kr', port=443): Max retries exceeded with url: /api/StatisticSearch/***/json/kr/1/1000/817Y002/D/20251110/20261125/010210000 (Caused by ConnectTimeoutError(<HTTPS / 원/달러 환율(매매기준율): HTTPSConnectionPool(host='ecos.bok.or.kr', port=443): Max retries exceeded with url: /api/StatisticSearch/***/json/kr/1/1000/731Y001/D/20251110/20261125/0000001 (Caused by ConnectTimeoutError(<HTTPSCo"
 }

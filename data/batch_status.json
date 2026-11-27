@@ -1,20 +1,14 @@
 {
  "target": "2026-11-27",
- "base_date": "2026-11-26",
- "complete": false,
+ "base_date": "2026-11-27",
+ "complete": true,
  "missing_insurers": [],
  "log": [
   {
    "label": "기준일",
    "date": "2026-11-27",
-   "rows": 1537,
-   "min_rows": 1714,
-   "result": "일부 공시(미저장)"
-  },
-  {
-   "label": "기준일",
-   "date": "2026-11-26",
-   "result": "저장분"
+   "rows": 1805,
+   "result": "저장"
   }
  ]
 }
